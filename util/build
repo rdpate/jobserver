@@ -1,0 +1,3 @@
+#!/bin/sh -ue
+cd "$(dirname "$0")/.."
+redo-ifchange cmd/pipe-exec

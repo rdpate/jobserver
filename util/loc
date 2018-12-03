@@ -1,0 +1,3 @@
+#!/bin/sh -ue
+files="$(printf %s\\n cmd/* | grep -v ^cmd/pipe-exec)"
+cat $files | grep -v '^ *#|^ *$' | sed -r 's/^ +//' | sort -u | wc -l

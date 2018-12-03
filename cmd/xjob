@@ -1,0 +1,66 @@
+#!/bin/sh -ue
+#.help
+# % init CMD..
+# % status
+# % acquire
+# % release [N]
+#
+# Subcommands:
+#   init CMD..
+#     Initialize a new pool and run CMD.
+#         --reuse               reuse pool if exists and exec CMD
+#         --slots=N             start with N available job slots
+#         --debug               show debug details
+#   started
+#     Exit 0 if started, 1 if not, or other for error.
+#         --debug               show debug details
+#   acquire [CMD..]
+#     Take 1 slot from pool; must be used after spawning background task.
+#   release [N]
+#     Return N slots to pool; must have been previously acquired.
+#
+# Example:
+#   #!/bin/sh -ue
+#   # first way:
+#   printf %s\\n "$@" | xlines -a du -s
+#   # (if args do not contain newline)
+#   # see doc/xlines
+#   #
+#   # second way:
+#   which xjob >/dev/null || exit 70
+#   xjob started || exec xjob init "$0" "$@"
+#   bg_job() { (trap 'xjob release' exit; "$@" </dev/null) &  xjob acquire; }
+#   for x; do
+#       bg_job du -s "$x"
+#   done
+#   wait
+
+fatal() { rc="$1"; shift; printf %s\\n "${0##*/} error: $*" >&2; exit "$rc"; }
+
+handle_option() { fatal 64 "unknown option $1"; }
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --) shift; break ;;
+        --*=*) x="${1#--}"; handle_option "${x%%=*}" "${x#*=}"; shift ;;
+        --*) handle_option "${1#--}"; shift ;;
+        -?) handle_option "${1#-}"; shift ;;
+        -?*)
+            v="${1#??}"
+            x="${1%"$v"}"
+            handle_option "${x#-}" "$v"
+            shift
+            ;;
+        *) break ;;
+        esac
+    done
+
+
+if [ $# = 0 ]; then
+    fatal 64 'missing sub-command'
+    fi
+sub="$(dirname "$(readlink -f "$0")")/$1"
+if [ xjob = "$1" -o ! -e "$sub" ]; then
+    fatal 64 "unknown sub-command: $1"
+    fi
+shift
+exec "$sub" "$@"

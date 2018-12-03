@@ -1,0 +1,67 @@
+#!/bin/sh -ue
+
+fatal() { rc="$1"; shift; printf %s\\n "${0##*/} error: $*" >&2; exit "$rc"; }
+is_digits() { local x; for x; do case "$x" in *[!0-9]*|'') return 1 ;; *) ;; esac done; }
+
+reuse=false
+slots=
+debug=false
+handle_option() {
+    case "$1" in
+        reuse)
+            [ $# = 1 ] || fatal 64 "unexpected value for option $1"
+            reuse=true
+            ;;
+        slots)
+            [ $# = 2 ] || fatal 64 "missing value for option $1"
+            is_digits "$2" || fatal 64 "expected (non-negative) integer for option $1"
+            if [ 0 = "$2" ]; then
+                fatal 64 'slots cannot be zero'
+            fi
+            slots="$2"
+            ;;
+        debug)
+            [ $# = 1 ] || fatal 64 "unexpected value for option $1"
+            debug=true
+            ;;
+        *) fatal 64 "unknown option $1" ;;
+        esac
+    }
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --) shift; break ;;
+        --*=*) x="${1#--}"; handle_option "${x%%=*}" "${x#*=}"; shift ;;
+        --*) handle_option "${1#--}"; shift ;;
+        -?) handle_option "${1#-}"; shift ;;
+        -?*)
+            v="${1#??}"
+            x="${1%"$v"}"
+            handle_option "${x#-}" "$v"
+            shift
+            ;;
+        *) break ;;
+        esac
+    done
+
+[ $# != 0 ] || fatal 64 'missing CMD argument'
+
+if $reuse && "$(dirname "$0")/started"; then
+    exec "$@"
+    fi
+if [ -z "$slots" ]; then
+    if which nproc >/dev/null 2>&1; then
+        # available processors
+        # relevant? https://unix.stackexchange.com/q/218074
+        slots="$(nproc)" || fatal 70 "nproc exited $?"
+    elif which sysctl >/dev/null 2>&1; then
+        # FreeBSD; total processors
+        slots="$(sysctl -n hw.ncpu)" || fatal 70 "sysctl exited $?"
+    else
+        #TODO: is this a sensible default? seems better than 1
+        slots=4
+        fi
+    fi
+if $debug; then
+    set -- sh -c '$0/started --debug; exec "$@"' "$(dirname "$0")" "$@"
+    fi
+exec "$(dirname "$0")/pipe-exec" --var=XJOB_FDS -- "$(dirname "$0")/_init" "$slots" "$@"

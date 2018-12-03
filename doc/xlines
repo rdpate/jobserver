@@ -1,0 +1,100 @@
+#!/bin/sh -ue
+#.help
+# % CMD..
+#
+# For each input line, run "CMD.. LINE" under existing or created xjob jobserver.
+#
+# Options:
+# -a  --all                 --blanks --comments --no-strip
+# -b  --blanks              don't ignore blank lines
+# -c  --comments            don't ignore lines matching /^ *#/
+#     --no-strip            don't strip leading/trailing spaces
+#
+#     --no-blanks           ignore blank lines (default)
+#     --no-comments         ignore lines matching /^ *#/ (default)
+#     --strip               strip leading and trailing spaces (default)
+#
+# Try:
+#   seq 1 9 | cmd/xjob init --slots=4 doc/xlines \
+#       sh -c 'printf $1; sleep $(( (9 - $1) % 3 )); printf $1' x ; \
+#       echo
+
+if ! which xjob >/dev/null 2>&1; then
+    # allow running without xjob in $PATH, only because this example is included with xjob
+    alias xjob="$(dirname "$0")/../cmd/xjob"
+    fi
+
+xjob started || exec xjob init "$0" "$@"
+
+fatal() { rc="$1"; shift; printf %s\\n "${0##*/} error: $*" >&2; exit "$rc"; }
+
+blanks=false
+comments=false
+no_strip=false
+handle_option() {
+    case "$1" in
+        a|all)
+            [ $# = 1 ] || fatal 64 "unexpected value for option $1"
+            blanks=true
+            comments=true
+            no_strip=true
+            ;;
+        b|blanks)
+            [ $# = 1 ] || fatal 64 "unexpected value for option $1"
+            blanks=true
+            ;;
+        c|comments)
+            [ $# = 1 ] || fatal 64 "unexpected value for option $1"
+            comments=true
+            ;;
+        no-strip)
+            [ $# = 1 ] || fatal 64 "unexpected value for option $1"
+            no_strip=true
+            ;;
+
+        no-blanks)
+            [ $# = 1 ] || fatal 64 "unexpected value for option $1"
+            blanks=false
+            ;;
+        no-comments)
+            [ $# = 1 ] || fatal 64 "unexpected value for option $1"
+            comments=false
+            ;;
+        strip)
+            [ $# = 1 ] || fatal 64 "unexpected value for option $1"
+            no_strip=false
+            ;;
+        *) fatal 64 "unknown option $1" ;;
+        esac
+    }
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --) shift; break ;;
+        --*=*) x="${1#--}"; handle_option "${x%%=*}" "${x#*=}"; shift ;;
+        --*) handle_option "${1#--}"; shift ;;
+        -?) handle_option "${1#-}"; shift ;;
+        -?*)
+            v="${1#??}"
+            x="${1%"$v"}"
+            handle_option "${x#-}" "$v"
+            shift
+            ;;
+        *) break ;;
+        esac
+    done
+
+[ $# != 0 ] || fatal 64 'missing CMD argument'
+which -- "$1" >/dev/null 2>&1 || fatal 65 "command not found: $1"
+
+bg_job() {
+    (trap 'xjob release' exit; command "$@" </dev/null) &
+    xjob acquire
+    }
+while read -r line; do
+    $no_strip || line="$(printf %s "$line" | sed -r 's/^ +| +$//g')"
+    $blanks || [ -n "$line" ] || continue
+    $comments || case "$line" in '#'*) continue ;; esac
+
+    bg_job "$@" "$line"
+    done
+wait

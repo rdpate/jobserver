@@ -1,0 +1,9 @@
+% CMD [ARG..]
+
+* Create a pipe(2).
+* Set $PIPE_FDS to read descriptor, comma, write descriptor.
+* Exec "CMD ARG..".
+
+Options:
+    --var=NAME                  use NAME instead of PIPE_FDS
+    --start=N                   try creating FDs at N (default 100)

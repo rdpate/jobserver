@@ -1,0 +1,14 @@
+#!/bin/sh -ue
+#.help
+# % SLOTS CMD..
+MAKEFLAGS="$(printf %s "${MAKEFLAGS-}" | sed -r 's/(^| )--jobserver-(auth|fds)=[^ ]*//g') --jobserver-auth=$XJOB_FDS --jobserver-fds=$XJOB_FDS"
+export MAKEFLAGS
+unset XJOB_FDS
+count=0
+release="$(dirname "$0")/release"
+while [ $count -lt "$1" ]; do
+    "$release"
+    count=$((count + 1))
+done
+shift
+exec "$@"

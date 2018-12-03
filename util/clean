@@ -1,0 +1,7 @@
+#!/bin/sh -ue
+cd "$(dirname "$0")/.."
+redo-targets | \
+while read -r x; do
+    [ -e "$x" ] || continue
+    rm -r -f "$x"
+done

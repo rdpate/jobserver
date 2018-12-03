@@ -1,0 +1,65 @@
+#!/bin/sh -ue
+
+fatal() { rc="$1"; shift; printf %s\\n "${0##*/} error: $*" >&2; exit "$rc"; }
+is_digits() { local x; for x; do case "$x" in *[!0-9]*|'') return 1 ;; *) ;; esac done; }
+
+timeout=
+timeout_exit=75
+handle_option() {
+    case "$1" in
+        wait)
+            [ $# = 2 ] || fatal 64 "missing value for option $1"
+            is_digits "$2" || fatal 64 "expected (non-negative) integer for option $1"
+            fatal 70 'TODO: implement --wait'
+            timeout="$2"
+            ;;
+        wait-exit)
+            [ $# = 2 ] || fatal 64 "missing value for option $1"
+            is_digits "$2" || fatal 64 "expected (non-negative) integer for option $1"
+            timeout_exit="$2"
+            ;;
+        *) fatal 64 "unknown option $1" ;;
+        esac
+    }
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --) shift; break ;;
+        --*=*) x="${1#--}"; handle_option "${x%%=*}" "${x#*=}"; shift ;;
+        --*) handle_option "${1#--}"; shift ;;
+        -?) handle_option "${1#-}"; shift ;;
+        -?*)
+            v="${1#??}"
+            x="${1%"$v"}"
+            handle_option "${x#-}" "$v"
+            shift
+            ;;
+        *) break ;;
+        esac
+    done
+
+
+[ $# = 0 ] || fatal 64 'unexpected arguments'
+
+jobserver_fds() {
+    local x found
+    set -- ${MAKEFLAGS-}
+    found=
+    for x; do
+        case "$x" in
+            --jobserver-fds=*|--jobserver-auth=*)
+                found="${x#*=}"
+                ;;
+            esac
+        done
+    [ -n "$found" ] || fatal 64 'jobserver not running!'
+    printf %s "$found"
+    }
+fd="$(jobserver_fds)"
+fd="${fd%,*}"
+# workaround: /bin/dash does not allow <&X when X > 9
+    if [ -e /dev/fd ]; then
+        exec </dev/fd/"$fd"
+    else
+        exec >&"$fd"
+        fi
+dd bs=1 count=1 status=none >/dev/null || fatal 70 "dd exited $rc"

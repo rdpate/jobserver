@@ -1,0 +1,62 @@
+#!/bin/sh -ue
+
+fatal() { rc="$1"; shift; printf %s\\n "${0##*/} error: $*" >&2; exit "$rc"; }
+nonfatal() { printf %s\\n "${0##*/}: $*" >&2; }
+is_digits() { local x; for x; do case "$x" in *[!0-9]*|'') return 1 ;; *) ;; esac done; }
+
+handle_option() { fatal 64 "unknown option $1"; }
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --) shift; break ;;
+        --*=*) x="${1#--}"; handle_option "${x%%=*}" "${x#*=}"; shift ;;
+        --*) handle_option "${1#--}"; shift ;;
+        -?) handle_option "${1#-}"; shift ;;
+        -?*)
+            v="${1#??}"
+            x="${1%"$v"}"
+            handle_option "${x#-}" "$v"
+            shift
+            ;;
+        *) break ;;
+        esac
+    done
+
+case "$#" in
+    0) set -- 1 ;;
+    1)
+        is_digits "$1" || fatal 64 "invalid N argument: $1"
+        if [ 0 = "$1" ]; then
+            nonfatal 'releasing zero job slots is a no-op'
+            exit 0
+            fi
+        ;;
+    *) fatal 64 'unexpected extra arguments' ;;
+    esac
+
+jobserver_fds() {
+    local x found
+    set -- ${MAKEFLAGS-}
+    found=
+    for x; do
+        case "$x" in
+            --jobserver-fds=*|--jobserver-auth=*)
+                found="${x#*=}"
+                ;;
+            esac
+        done
+    [ -n "$found" ] || fatal 64 'jobserver not running!'
+    printf %s "$found"
+    }
+fd="$(jobserver_fds)"
+fd="${fd#*,}"
+# workaround: /bin/dash does not allow >&X when X > 9
+    if [ -e /dev/fd ]; then
+        exec >/dev/fd/"$fd"
+    else
+        exec >&"$fd"
+        fi
+count=0
+while [ "$count" -lt "$1" ]; do
+    printf x
+    count=$((count + 1))
+    done
