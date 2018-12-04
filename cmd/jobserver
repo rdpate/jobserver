@@ -27,9 +27,9 @@
 #   # see doc/xlines
 #   #
 #   # second way:
-#   which xjob >/dev/null || exit 70
-#   xjob started || exec xjob init "$0" "$@"
-#   bg_job() { (trap 'xjob release' exit; "$@" </dev/null) &  xjob acquire; }
+#   which jobserver >/dev/null || exit 70
+#   jobserver started || exec jobserver init "$0" "$@"
+#   bg_job() { (trap 'jobserver release' exit; "$@" </dev/null) &  jobserver acquire; }
 #   for x; do
 #       bg_job du -s "$x"
 #   done
@@ -59,7 +59,7 @@ if [ $# = 0 ]; then
     fatal 64 'missing sub-command'
     fi
 sub="$(dirname "$(readlink -f "$0")")/$1"
-if [ xjob = "$1" -o ! -e "$sub" ]; then
+if [ jobserver = "$1" -o ! -e "$sub" ]; then
     fatal 64 "unknown sub-command: $1"
     fi
 shift

@@ -64,4 +64,4 @@ if [ -z "$slots" ]; then
 if $debug; then
     set -- sh -c '$0/started --debug; exec "$@"' "$(dirname "$0")" "$@"
     fi
-exec "$(dirname "$0")/pipe-exec" --var=XJOB_FDS -- "$(dirname "$0")/_init" "$slots" "$@"
+exec "$(dirname "$0")/pipe-exec" --var=JOBSERVER_FDS -- "$(dirname "$0")/_init" "$slots" "$@"

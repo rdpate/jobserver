@@ -1,13 +1,13 @@
 Optionally Parallel
 ====
 
-If xjob is on $PATH, then use it, starting if needed.  Otherwise run background jobs synchronously:
+If jobserver is on $PATH, then use it, starting if needed.  Otherwise run background jobs synchronously:
 
-    if which xjob >/dev/null 2>&1; then
-        xjob started || exec xjob init "$0" "$@"
+    if which jobserver >/dev/null 2>&1; then
+        jobserver started || exec jobserver init "$0" "$@"
         bg_job() {
-            (trap 'xjob release' exit; command "$@" </dev/null) &
-            xjob acquire
+            (trap 'jobserver release' exit; command "$@" </dev/null) &
+            jobserver acquire
             }
     else
         # synchronous
