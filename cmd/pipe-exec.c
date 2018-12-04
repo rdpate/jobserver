@@ -42,7 +42,7 @@ bool is_valid_var_name(char const *name) {
     return true;
     }
 
-static int start_fd = 100;
+static int start_fd = 0;
 bool to_int(int *dest, char const *s) {
     char const *end;
     errno = 0;
@@ -66,7 +66,7 @@ int handle_option(char const *name, char const *value) {
         var_name = value;
         }
     else if (!strcmp(name, "start")) {
-        if (!to_int(&start_fd, value)) {
+        if (!to_int(&start_fd, value) || start_fd < 0) {
             fatal(64, "invalid start fd: %s", value);
             }
         }
@@ -144,22 +144,30 @@ int main(int _, char **argv) {
 
     if (start_fd) {
         int old_read = fds[0];
+        if (old_read < start_fd) {
+            fds[0] = fcntl(old_read, F_DUPFD, start_fd);
+            if (fds[0] == -1) {
+                perror("fcntl");
+                return 69;
+                }
+            close(old_read);
+            }
         int old_write = fds[1];
-        fds[0] = fcntl(old_read, F_DUPFD, start_fd);
-        if (fds[0] == -1) {
-            fds[0] = old_read;
+        if (old_write < start_fd) {
+            fds[1] = fcntl(old_write, F_DUPFD, start_fd);
+            if (fds[1] == -1) {
+                perror("fcntl");
+                return 69;
+                }
+            close(old_write);
             }
-        else close(old_read);
-        fds[1] = fcntl(old_write, F_DUPFD, start_fd);
-        if (fds[1] == -1) {
-            fds[1] = old_write;
-            }
-        else close(old_write);
         }
 
-    if (fds[0] > 999 || fds[1] > 999) return 70;
-    char var[strlen(var_name) +  1 + 3 + 1 + 3 + 1];
-    //                           '=' %d  ',' %d  '\0'
+    if (fds[0] > 99999 || fds[1] > 99999) return 70;
+    int newlen = strlen(var_name) +  1 + 5 + 1 + 5 + 1;
+    //                               '=' %d  ',' %d  '\0'
+    char *var = malloc(newlen);
+    if (!var) return 70;
     sprintf(var, "%s=%d,%d", var_name, fds[0], fds[1]);
     putenv(var);
 
