@@ -1,23 +1,27 @@
 #!/bin/sh -ue
 #.help
 # % init CMD..
-# % status
+# % started
+# % release CMD.. &
 # % acquire
-# % release [N]
+# % sleeping
 #
 # Subcommands:
 #   init CMD..
 #     Initialize a new pool and run CMD.
-#         --reuse               reuse pool if exists and exec CMD
+#         --new                 don't reuse existing pool
 #         --slots=N             start with N available job slots
 #         --debug               show debug details
 #   started
-#     Exit 0 if started, 1 if not, or other for error.
+#     Exit 0 if started, 69 if not started, or other for error.
 #         --debug               show debug details
-#   acquire [CMD..]
-#     Take 1 slot from pool; must be used after spawning background task.
-#   release [N]
-#     Return N slots to pool; must have been previously acquired.
+#   release CMD.. &
+#     Run CMD and then release token.  Should be run in background.
+#         --keep-stdin          stdin has been redirected for CMD
+#   acquire
+#     After passing token to background task, acquire another to start work.
+#   sleeping
+#     Release current token which must be reacquired before working or exiting.
 #
 # Example:
 #   #!/bin/sh -ue
@@ -27,9 +31,9 @@
 #   # see doc/xlines
 #   #
 #   # second way:
-#   which jobserver >/dev/null || exit 70
+#   which jobserver >/dev/null || exit 69
 #   jobserver started || exec jobserver init "$0" "$@"
-#   bg_job() { (trap 'jobserver release' exit; "$@" </dev/null) &  jobserver acquire; }
+#   bg_job() { jobserver release "$@" & jobserver acquire; }
 #   for x; do
 #       bg_job du -s "$x"
 #   done

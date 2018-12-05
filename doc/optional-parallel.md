@@ -6,7 +6,8 @@ If jobserver is on $PATH, then use it, starting if needed.  Otherwise run backgr
     if which jobserver >/dev/null 2>&1; then
         jobserver started || exec jobserver init "$0" "$@"
         bg_job() {
-            (trap 'jobserver release' exit; command "$@" </dev/null) &
+            jobserver release "$@" &
+            # "current" slot has passed to bg command, must acquire to continue
             jobserver acquire
             }
     else

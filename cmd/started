@@ -51,6 +51,6 @@ case "$found" in
         if $debug; then
             printf %s\\n 'jobserver not running!'
             fi
-        exit 1
+        exit 69
         ;;
     esac

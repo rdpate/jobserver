@@ -2,7 +2,9 @@
 #.help
 # % CMD..
 #
-# For each input line, run "CMD.. LINE" under existing or created jobserver.
+# For each input line, run "CMD.. LINE" under a jobserver, which is created if required.
+#
+# Environment variable $LINE is the original line number.
 #
 # Options:
 # -a  --all                 --blanks --comments --no-strip
@@ -17,16 +19,19 @@
 #TODO: better example
 # Example:
 #   # new jobserver limited to 4 slots for sake of example
-#   $ seq 1 9 | cmd/jobserver init --slots=4 doc/xlines \
+#   $ seq 1 9 | cmd/jobserver init --new --slots=4 doc/xlines \
 #       sh -c 'printf $1; sleep $(( (9 - $1) % 3 )); printf $1' x ; \
 #       echo
 #   123345667285991847
 
-# because this is an included example program
-jobserver="$(which jobserver 2>/dev/null)" || \
+# default to "jobserver" command in $PATH
+# or use included because this is an example program
+jobserver="$(which jobserver 2>/dev/null)" || {
     jobserver="$(dirname "$(readlink -f "$0")")/../cmd/jobserver"
+    alias jobserver='"$jobserver"'
+    }
 
-$jobserver started || exec $jobserver init "$0" "$@"
+jobserver started || exec jobserver init "$0" "$@"
 
 fatal() { rc="$1"; shift; printf %s\\n "${0##*/} error: $*" >&2; exit "$rc"; }
 
@@ -89,15 +94,18 @@ while [ $# -gt 0 ]; do
 which -- "$1" >/dev/null 2>&1 || fatal 65 "command not found: $1"
 
 bg_job() {
-    (trap '$jobserver release' exit; command "$@" </dev/null) &
+    jobserver release "$@" &
     # "current" slot has passed to bg command, must acquire to continue
-    $jobserver acquire
+    jobserver acquire
     }
+LINE=1
+export LINE
 while read -r line; do
     $no_strip || line="$(printf %s "$line" | sed -r 's/^ +| +$//g')"
     $blanks || [ -n "$line" ] || continue
     $comments || case "$line" in '#'*) continue ;; esac
 
     bg_job "$@" "$line"
+    LINE=$((LINE + 1))
     done
 wait

@@ -1,10 +1,39 @@
 #!/bin/sh -ue
-
 fatal() { rc="$1"; shift; printf %s\\n "${0##*/} error: $*" >&2; exit "$rc"; }
-nonfatal() { printf %s\\n "${0##*/}: $*" >&2; }
-is_digits() { local x; for x; do case "$x" in *[!0-9]*|'') return 1 ;; *) ;; esac done; }
 
-handle_option() { fatal 64 "unknown option $1"; }
+get_fd() {
+    local x
+    set -- ${MAKEFLAGS-}
+    fd=
+    for x; do
+        case "$x" in
+            --jobserver-fds=?*,?*|--jobserver-auth=?*,?*)
+                fd="${x#*,}"
+                ;;
+            esac
+        done
+    [ -n "$fd" ] || fatal 64 'jobserver not running!'
+    }
+get_fd
+# always release if possible
+if [ -e /dev/fd ]; then
+    # workaround: dash, zsh, and probably more do not allow >&X when X > 9
+    trap 'printf x >/dev/fd/"$fd"' exit
+else
+    # let the shell report an error rather than guessing or assuming will fail
+    trap 'printf x >&"$fd"' exit
+    fi
+
+keep_stdin=false
+handle_option() {
+    case "$1" in
+        keep-stdin)
+            [ $# = 1 ] || fatal 64 "unexpected value for option $1"
+            keep_stdin=true
+            ;;
+        *) fatal 64 "unknown option $1" ;;
+        esac
+    }
 while [ $# -gt 0 ]; do
     case "$1" in
         --) shift; break ;;
@@ -21,42 +50,6 @@ while [ $# -gt 0 ]; do
         esac
     done
 
-case "$#" in
-    0) set -- 1 ;;
-    1)
-        is_digits "$1" || fatal 64 "invalid N argument: $1"
-        if [ 0 = "$1" ]; then
-            nonfatal 'releasing zero job slots is a no-op'
-            exit 0
-            fi
-        ;;
-    *) fatal 64 'unexpected extra arguments' ;;
-    esac
-
-jobserver_fds() {
-    local x found
-    set -- ${MAKEFLAGS-}
-    found=
-    for x; do
-        case "$x" in
-            --jobserver-fds=*|--jobserver-auth=*)
-                found="${x#*=}"
-                ;;
-            esac
-        done
-    [ -n "$found" ] || fatal 64 'jobserver not running!'
-    printf %s "$found"
-    }
-fd="$(jobserver_fds)"
-fd="${fd#*,}"
-# workaround: /bin/dash does not allow >&X when X > 9
-    if [ -e /dev/fd ]; then
-        exec >/dev/fd/"$fd"
-    else
-        exec >&"$fd"
-        fi
-count=0
-while [ "$count" -lt "$1" ]; do
-    printf x
-    count=$((count + 1))
-    done
+[ $# != 0 ] || fatal 64 'missing CMD argument'
+$keep_stdin || exec </dev/null
+command "$@"

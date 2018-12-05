@@ -1,12 +1,12 @@
 #!/bin/sh -ue
 #.help
 # % SLOTS CMD..
-MAKEFLAGS="$(printf %s "${MAKEFLAGS-}" | sed -r 's/(^| )--jobserver-(auth|fds)=[^ ]*//g') --jobserver-auth=$JOBSERVER_FDS --jobserver-fds=$JOBSERVER_FDS"
+MAKEFLAGS="$(printf %s "${MAKEFLAGS-}" | sed -r 's/(^| )--jobserver-(auth|fds)=[^ ]*//g') -j --jobserver-auth=$JOBSERVER_FDS --jobserver-fds=$JOBSERVER_FDS"
 export MAKEFLAGS
 count=0
-release="$(dirname "$0")/release"
+add_token="$(dirname "$0")/sleeping"
 while [ $count -lt "$1" ]; do
-    "$release"
+    "$add_token"
     count=$((count + 1))
 done
 shift
