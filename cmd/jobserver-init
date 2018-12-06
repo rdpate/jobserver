@@ -45,7 +45,8 @@ while [ $# -gt 0 ]; do
 
 [ $# != 0 ] || fatal 64 'missing CMD argument'
 
-if $reuse && "$(dirname "$0")/started"; then
+jobserver="$(readlink -f "$(dirname "$0")")/jobserver"
+if $reuse && "$jobserver-started"; then
     exec "$@"
     fi
 if [ -z "$slots" ]; then
@@ -62,6 +63,8 @@ if [ -z "$slots" ]; then
         fi
     fi
 if $debug; then
-    set -- sh -c '$0/started --debug; exec "$@"' "$(dirname "$0")" "$@"
+    set -- sh -c '"$0" --debug; exec "$@"' "$jobserver-started" "$@"
     fi
+JOBSERVER="$jobserver"
+export JOBSERVER
 exec "$(dirname "$0")/pipe-exec" --var=JOBSERVER_FDS -- "$(dirname "$0")/_init" "$slots" "$@"

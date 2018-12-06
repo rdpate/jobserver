@@ -43,13 +43,23 @@ case "$found" in
     ?*,?*)
         #TODO: test if these are open fds or just leftover in environ
         if $debug; then
-            printf %s\\n "jobserver running; read fd: ${found%,*}, write fd: ${found#*,}"
+            printf %s\\n "# jobserver running; read fd: ${found%,*}, write fd: ${found#*,}"
+            if [ -n "${JOBSERVER-}" ]; then
+                printf %s\\n "JOBSERVER=$JOBSERVER"
+            else
+                printf %s\\n "# unset: JOBSERVER"
+                fi
+            if [ -n "${JOBSERVER_FDS-}" ]; then
+                printf %s\\n "JOBSERVER_FDS=$JOBSERVER_FDS"
+            else
+                printf %s\\n "# unset: JOBSERVER_FDS"
+                fi
             fi
         exit 0
         ;;
     *)
         if $debug; then
-            printf %s\\n 'jobserver not running!'
+            printf %s\\n '# jobserver not running!'
             fi
         exit 69
         ;;

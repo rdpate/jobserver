@@ -1,28 +1,5 @@
 #!/bin/sh -ue
-fatal() { rc="$1"; shift; printf %s\\n "${0##*/} error: $*" >&2; exit "$rc"; }
-
-get_fd() {
-    local x
-    set -- ${MAKEFLAGS-}
-    fd=
-    for x; do
-        case "$x" in
-            --jobserver-fds=?*,?*|--jobserver-auth=?*,?*)
-                fd="${x#*,}"
-                ;;
-            esac
-        done
-    [ -n "$fd" ] || fatal 64 'jobserver not running!'
-    }
-get_fd
-# always release if possible
-if [ -e /dev/fd ]; then
-    # workaround: dash, zsh, and probably more do not allow >&X when X > 9
-    trap 'printf x >/dev/fd/"$fd"' exit
-else
-    # let the shell report an error rather than guessing or assuming will fail
-    trap 'printf x >&"$fd"' exit
-    fi
+. "$(dirname "$0")/_release"
 
 keep_stdin=false
 handle_option() {

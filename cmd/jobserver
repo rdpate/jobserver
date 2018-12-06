@@ -16,12 +16,14 @@
 #     Exit 0 if started, 69 if not started, or other for error.
 #         --debug               show debug details
 #   release CMD.. &
-#     Run CMD and then release token.  Should be run in background.
+#     Pass active slot to CMD and then release slot when done.
 #         --keep-stdin          stdin has been redirected for CMD
 #   acquire
-#     After passing token to background task, acquire another to start work.
-#   sleeping
-#     Release current token which must be reacquired before working or exiting.
+#     After passing slot to background task, acquire another to start work.
+#   sleep-start
+#     Release active slot; must use sleep-end when ready to start work.
+#   sleep-end
+#     Re-acquire active slot after sleep-start.
 #
 # Example:
 #   #!/bin/sh -ue
@@ -62,9 +64,7 @@ while [ $# -gt 0 ]; do
 if [ $# = 0 ]; then
     fatal 64 'missing sub-command'
     fi
-sub="$(dirname "$(readlink -f "$0")")/$1"
-if [ jobserver = "$1" -o ! -e "$sub" ]; then
-    fatal 64 "unknown sub-command: $1"
-    fi
+sub="$(readlink -f "$0")-$1"
+[ -e "$sub" ] || fatal 64 "unknown sub-command: $1"
 shift
 exec "$sub" "$@"

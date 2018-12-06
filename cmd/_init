@@ -4,7 +4,7 @@
 MAKEFLAGS="$(printf %s "${MAKEFLAGS-}" | sed -r 's/(^| )--jobserver-(auth|fds)=[^ ]*//g') -j --jobserver-auth=$JOBSERVER_FDS --jobserver-fds=$JOBSERVER_FDS"
 export MAKEFLAGS
 count=0
-add_token="$(dirname "$0")/sleeping"
+add_token="$(dirname "$0")/jobserver-sleeping"
 while [ $count -lt "$1" ]; do
     "$add_token"
     count=$((count + 1))
