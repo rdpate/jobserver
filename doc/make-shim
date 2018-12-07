@@ -46,7 +46,7 @@ squote() {
     local x
     while true; do
         x="$(printf %s "$1" | tr -d -c \\055_0-9A-Za-z)"
-        if [ x"$x" = x"$1" ]; then
+        if [ -n "$1" -a x"$x" = x"$1" ]; then
             printf %s "$1"
         else
             printf \'%s\' "$(printf %s "$1" | sed -r s/\'/\'\\\\\'\'/g)"

@@ -1,0 +1,43 @@
+#!/bin/sh -ue
+cd "$(dirname "$0")/.."
+task/build
+
+unset MAKEFLAGS
+unset JOBSERVER_FDS
+jobserver="$(readlink -f cmd/jobserver)"
+export jobserver
+
+cd test
+_funcs="$(readlink -f _funcs.sh)"
+exec </dev/null
+run_tests() {  # [PREFIX]
+    for x in *; do
+        case "$x" in
+            _*) continue ;;
+            esac
+        cur="${1-}$x"
+        if [ -d "$x" ]; then
+            (cd "$x" && run_tests "${1-}$x/")
+            continue
+            fi
+        printf %s\\n "--- $cur"
+        case "$x" in
+            *_js.sh)
+                "$jobserver" init --new \
+                /bin/sh -u -e -c '. "$1"; . ./"$2"' test "$_funcs" "$x"
+                continue
+                ;;
+            *.sh)
+                /bin/sh -u -e -c '. "$1"; . ./"$2"' test "$_funcs" "$x"
+                continue
+                ;;
+            esac
+        if [ -x "$x" ]; then
+            ./"$x"
+            continue
+            fi
+        printf %s\\n "unknown test type: $cur" >&2
+        exit 1
+        done
+    }
+run_tests

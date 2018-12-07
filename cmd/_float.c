@@ -64,7 +64,7 @@ static bool slots_are_waiting() {
     if (rc == 0) return false;
     return (x.revents & POLLIN);
     }
-static int slot_change() {
+static int slot_adjustment() {
     double current = target_load;
     getloadavg(&current, 1);
     if (target_end < current) {
@@ -125,8 +125,15 @@ static void remove_slot() {
         fatal(69, "jobserver descriptor changed to non-blocking mode!");
     perror("read");
     }
+static bool slot_change() {  // Perform slot adjustment; return whether adjustment was required.
+    int adj = slot_adjustment();
+    if (!adj) return false;
+    if (adj < 0) remove_slot();
+    else add_slot();
+    return true;
+    }
 
-void noop(int _) {}
+static void noop(int _) {}
 
 int main(int argc, char **argv) {
     { // prog_name
@@ -143,19 +150,19 @@ int main(int argc, char **argv) {
     leak_warning = n;
     if (leak_warning < INT_MAX / 2) leak_warning *= 2;
 
-    { // setup alarm signal handler
+    { // setup SIGALRM handler
         struct sigaction act = {};
         act.sa_handler = noop;
         if (sigaction(SIGALRM, &act, NULL) == -1) {
             perror("sigaction");
-            return 70;
+            fatal(71, "sigaction failed");
             }
         }
 
     pid_t pid = fork();
     if (pid == -1) {
         perror("fork");
-        fatal(65, "fork failed");
+        fatal(71, "fork failed");
         }
     if (pid == 0) {
         // child
@@ -176,20 +183,14 @@ int main(int argc, char **argv) {
         if (rc == -1) {
             if (errno != EINTR) {
                 perror("waitpid");
-                return 70;
+                fatal(71, "waitpid failed");
                 }
             }
         else if (rc == pid) {
             if (WIFEXITED(status)) return WEXITSTATUS(status);
             else if (WIFSIGNALED(status)) return WTERMSIG(status) + 128;
             }
-        int change = slot_change();
-        if (change == 0)
-            delay = 60;
-        else {
-            delay = 10;
-            if (change > 0) add_slot();
-            else remove_slot();
-            }
+        if (slot_change()) delay = 10;
+        else delay = 60;
         }
     }
