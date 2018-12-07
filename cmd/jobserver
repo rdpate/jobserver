@@ -10,7 +10,8 @@
 #   init CMD..
 #     Initialize a new pool and run CMD.
 #         --new                 don't reuse existing pool
-#         --slots=N             start with N available job slots
+#         --slots=N             start with N slots
+#         --no-float            don't monitor pool to add slots
 #         --debug               show debug details
 #   started
 #     Exit 0 if started, 69 if not started, or other for error.

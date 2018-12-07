@@ -1,4 +1,24 @@
 #!/bin/sh -ue
 fatal() { rc="$1"; shift; printf %s\\n "${0##*/} error: $*" >&2; exit "$rc"; }
 [ $# = 0 ] || fatal 64 'unknown options/arguments'
-"$(dirname "$0")/jobserver-acquire" &
+get_fd() {
+    local x
+    set -- ${MAKEFLAGS-}
+    fd=
+    for x; do
+        case "$x" in
+            --jobserver-fds=?*,?*|--jobserver-auth=?*,?*)
+                fd="${x%,*}"
+                ;;
+            esac
+        done
+    [ -n "$fd" ] || fatal 64 'jobserver not running!'
+    }
+get_fd
+if [ -e /dev/fd ]; then
+    # workaround for shells that don't allow <&X when X > 9
+    exec </dev/fd/"$fd"
+else
+    exec <&"$fd" || fatal 70 "file descriptor unsupported: <&$fd"
+    fi
+(dd bs=1 count=1 status=none >/dev/null || fatal 70 "dd exited $?") &

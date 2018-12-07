@@ -5,6 +5,7 @@ is_digits() { local x; for x; do case "$x" in *[!0-9]*|'') return 1 ;; *) ;; esa
 
 reuse=true
 slots=
+float=
 debug=false
 handle_option() {
     case "$1" in
@@ -19,6 +20,10 @@ handle_option() {
                 fatal 64 'slots cannot be zero'
             fi
             slots="$2"
+            ;;
+        no-float)
+            [ $# = 1 ] || fatal 64 "unexpected value for option $1"
+            float=false
             ;;
         debug)
             [ $# = 1 ] || fatal 64 "unexpected value for option $1"
@@ -42,7 +47,6 @@ while [ $# -gt 0 ]; do
         *) break ;;
         esac
     done
-
 [ $# != 0 ] || fatal 64 'missing CMD argument'
 
 jobserver="$(readlink -f "$(dirname "$0")")/jobserver"
@@ -67,4 +71,6 @@ if $debug; then
     fi
 JOBSERVER="$jobserver"
 export JOBSERVER
-exec "$(dirname "$0")/pipe-exec" --var=JOBSERVER_FDS -- "$(dirname "$0")/_init" "$slots" "$@"
+exec "$(dirname "$0")/pipe-exec" --var=JOBSERVER_FDS -- \
+    ${float+"$(dirname "$0")/_float"} "$(dirname "$0")/_init" "$slots" \
+    "$@"
