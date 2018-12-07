@@ -53,7 +53,7 @@ static void set_target(double target) {
     target_load   = target;
     target_end    = target + 0.5;
     }
-static int added, read_fd, write_fd;
+static int added, leak_warning, read_fd, write_fd;
 static bool slots_are_waiting() {
     struct pollfd x = {read_fd, POLLIN};
     int rc = poll(&x, 1, 0);
@@ -101,6 +101,10 @@ static void add_slot() {
     ssize_t x = write(write_fd, "x", 1);
     if (x == 1) {
         ++added;
+        if (added == leak_warning) {
+            nonfatal("probable job slot leak detected!");
+            added /= 2;
+            }
         return;
         }
     if (x == 0) fatal(70, "TODO: can this ever happen?");
@@ -136,6 +140,8 @@ int main(int argc, char **argv) {
     if (!to_int(&n, argv[2]) || n < 0)
         fatal(70, "expected arg 2 to be a (non-negative) number");
     set_target(n);
+    leak_warning = n;
+    if (leak_warning < INT_MAX / 2) leak_warning *= 2;
 
     { // setup alarm signal handler
         struct sigaction act = {};
@@ -159,10 +165,9 @@ int main(int argc, char **argv) {
         }
     // parent
 
-    // "preload" one slot to help with initial burst of activity, before reflected in load
-    // for cases when started for a specific task, like compiling
+    // "Preload" one slot to help with initial burst of activity which will not be immediately reflected in loadavg, for cases when started for a specific, intensive task that (hopefully) doesn't last long, like compiling.
     add_slot();
-    // and then start checking regularly
+    // Then start checking regularly.
     int delay = 60;
     while (true) {
         alarm(delay);
