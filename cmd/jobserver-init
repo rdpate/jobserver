@@ -1,7 +1,13 @@
 #!/bin/sh -ue
 
 fatal() { rc="$1"; shift; printf %s\\n "${0##*/} error: $*" >&2; exit "$rc"; }
+nonfatal() { printf %s\\n "${0##*/}: $*" >&2; }
 is_digits() { local x; for x; do case "$x" in *[!0-9]*|'') return 1 ;; *) ;; esac done; }
+
+#TODO: is this a sensible default? seems better than 1
+# will cause unnecessary contention if CPUs < 4
+default_slots=4
+max_slots=1000
 
 reuse=true
 slots=
@@ -19,11 +25,16 @@ handle_option() {
             if [ 0 = "$2" ]; then
                 fatal 64 'slots cannot be zero'
             fi
-            slots="$2"
+            if [ "$2" -gt $max_slots ]; then
+                nonfatal "capping slots at $max_slots (instead of $2)"
+                slots="$max_slots"
+            else
+                slots="$2"
+                fi
             ;;
         no-float)
             [ $# = 1 ] || fatal 64 "unexpected value for option $1"
-            float=false
+            float=--no-float
             ;;
         debug)
             [ $# = 1 ] || fatal 64 "unexpected value for option $1"
@@ -51,19 +62,32 @@ while [ $# -gt 0 ]; do
 
 jobserver="$(readlink -f "$(dirname "$0")")/jobserver"
 if $reuse && "$jobserver-started"; then
+    [ -z "$slots" ] || nonfatal "ignoring explicit slots and reusing existing pool"
     exec "$@"
     fi
 if [ -z "$slots" ]; then
     if which nproc >/dev/null 2>&1; then
         # available processors
         # relevant? https://unix.stackexchange.com/q/218074
-        slots="$(nproc)" || fatal 70 "nproc exited $?"
+        slots="$(nproc)" || {
+            nonfatal "using $default_slots slots because nproc exited $?"
+            slots="$default_slots"
+            }
     elif which sysctl >/dev/null 2>&1; then
         # FreeBSD; total processors
-        slots="$(sysctl -n hw.ncpu)" || fatal 70 "sysctl exited $?"
+        slots="$(sysctl -n hw.ncpu)" || {
+            nonfatal "using $default_slots slots because sysctl exited $?"
+            slots="$default_slots"
+            }
     else
-        #TODO: is this a sensible default? seems better than 1
-        slots=4
+        nonfatal "using $default_slots slots because do not know how to determine default"
+        slots="$default_slots"
+        fi
+    if is_digits "$slots" && [ 0 != "$slots" ]; then
+        :
+    else
+        nonfatal "using $default_slots instead of invalid slots: ${slots-(empty)}"
+        slots="$default_slots"
         fi
     fi
 if $debug; then
@@ -71,6 +95,5 @@ if $debug; then
     fi
 JOBSERVER="$jobserver"
 export JOBSERVER
-exec "$(dirname "$0")/pipe-exec" --var=JOBSERVER_FDS -- \
-    ${float+"$(dirname "$0")/_float"} "$(dirname "$0")/_init" "$slots" \
-    "$@"
+exec "$(dirname "$jobserver")/_float" $float --var=JOBSERVER_FDS "$slots" \
+    "$(dirname "$jobserver")/_init2" "$@"

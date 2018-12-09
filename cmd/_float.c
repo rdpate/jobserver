@@ -1,3 +1,4 @@
+#include <errno.h>
 #include <limits.h>
 #include <signal.h>
 #include <stdarg.h>
@@ -6,7 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <errno.h>
+#include <fcntl.h>
 #include <poll.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -31,7 +32,22 @@ void nonfatal(char const *fmt, ...) {
     fputc('\n', stderr);
     }
 
-bool to_int(int *dest, char const *s) {
+static char const *var_name = "PIPE_FDS";
+static bool is_valid_var_name(char const *name) {
+    if (!*name) return false;
+    if ('0' <= *name && *name <= '9') return false;
+    for (; *name; ++name) {
+        if ('0' <= *name && *name <= '9') {}
+        else if ('A' <= *name && *name <= 'Z') {}
+        else if ('a' <= *name && *name <= 'z') {}
+        else if (*name == '_') {}
+        else return false;
+        }
+    return true;
+    }
+
+static int start_fd = 0;
+static bool to_int(int *dest, char const *s) {
     char const *end;
     errno = 0;
     long temp = strtol(s, (char **)&end, 10);
@@ -83,19 +99,6 @@ static int slot_adjustment() {
     return 0;  // currently within Goldilocks Zone
     }
 static int read_fd, write_fd;
-static bool setup_fds() {
-    char *s = getenv("JOBSERVER_FDS");
-    if (!s || !*s) return false;
-    char *read = s;
-    while (*s && *s != ',') ++s;
-    if (!s) return false;
-    char *write = s + 1;
-    *s = '\0';
-    bool read_ok   = to_int(&read_fd,   read);
-    bool write_ok  = to_int(&write_fd,  write);
-    *s = ',';
-    return read_ok && write_ok && read_fd >= 0 && write_fd >= 0;
-    }
 static void add_slot() {
     //puts("DEBUG: add_slot");
     ssize_t x = write(write_fd, "x", 1);
@@ -125,7 +128,8 @@ static void remove_slot() {
         fatal(69, "jobserver descriptor changed to non-blocking mode!");
     perror("read");
     }
-static bool slot_change() {  // Perform slot adjustment; return whether adjustment was required.
+static bool slot_change() {
+    // Perform slot adjustment; return whether adjustment was required.
     int adj = slot_adjustment();
     if (!adj) return false;
     if (adj < 0) remove_slot();
@@ -133,23 +137,93 @@ static bool slot_change() {  // Perform slot adjustment; return whether adjustme
     return true;
     }
 
-static void noop(int _) {}
-
-int main(int argc, char **argv) {
-    { // prog_name
-        char const *x = strrchr((prog_name = argv[0]), '/');
-        if (x) prog_name = x + 1;
+static bool start_float = true;
+static int handle_option(char const *name, char const *value) {
+    if (!strcmp(name, "var")) {
+        if (!is_valid_var_name(value)) {
+            fatal(64, "invalid env variable name: %s", value);
+            }
+        var_name = value;
         }
-    if (argc < 3) fatal(70, "not enough arguments");
-    if (!setup_fds()) fatal(70, "cannot get file descriptors");
+    else if (!strcmp(name, "start")) {
+        if (!to_int(&start_fd, value) || start_fd < 0) {
+            fatal(64, "invalid start fd: %s", value);
+            }
+        }
+    else if (!strcmp(name, "no-float")) {
+        if (value) fatal(64, "unexpected value for option no-float");
+        start_float = false;
+        }
+    else fatal(64, "unknown option: %s", name);
+    return 0;
+    }
+static int parse_options(char **args, char ***rest) {
+    // modifies argument for long options with values, though does reverse the modification afterwards
+    // returns 0 or the first non-zero return from handle_option
+    // if rest is non-null, *rest is the first unprocessed argument, which will either be the first non-option argument or the argument for which handle_option returned non-zero
+    int rc = 0;
+    for (; args[0]; ++args) {
+        if (!strcmp(args[0], "--")) {
+            args += 1;
+            break;
+            }
+        else if (args[0][0] == '-' && args[0][1] != '\0') {
+            if (args[0][1] == '-') {
+                // long option
+                char *eq = strchr(args[0], '=');
+                if (!eq) {
+                    // long option without value
+                    if ((rc = handle_option(args[0] + 2, NULL))) {
+                        break;
+                        }
+                    }
+                else {
+                    // long option with value
+                    *eq = '\0';
+                    if ((rc = handle_option(args[0] + 2, eq + 1))) {
+                        *eq = '=';
+                        break;
+                        }
+                    *eq = '=';
+                    }
+                }
+            else if (args[0][2] == '\0') {
+                // short option without value
+                if ((rc = handle_option(args[0] + 1, NULL))) {
+                    break;
+                    }
+                }
+            else {
+                // short option with value
+                char name[2] = {args[0][1]};
+                if ((rc = handle_option(name, args[0] + 2))) {
+                    break;
+                    }
+                }
+            }
+        else break;
+    }
+    if (rest) {
+        *rest = args;
+        }
+    return rc;
+    }
 
-    int n;
-    if (!to_int(&n, argv[2]) || n < 0)
-        fatal(70, "expected arg 2 to be a (non-negative) number");
-    set_target(n);
-    leak_warning = n;
-    if (leak_warning < INT_MAX / 2) leak_warning *= 2;
+static int do_exec(char **argv) {
+    if (read_fd > 99999 || write_fd > 99999) return 70;
+    int newlen = strlen(var_name) +  1 + 5 + 1 + 5 + 1;
+    //                               '=' %d  ',' %d  '\0'
+    char *var = malloc(newlen);
+    if (!var) return 70;
+    sprintf(var, "%s=%d,%d", var_name, read_fd, write_fd);
+    putenv(var);
 
+    execvp(argv[0], argv);
+    perror("exec");
+    return 65;
+    }
+static void noop(int _) {}
+static int do_float(pid_t child_pid) {
     { // setup SIGALRM handler
         struct sigaction act = {};
         act.sa_handler = noop;
@@ -158,20 +232,6 @@ int main(int argc, char **argv) {
             fatal(71, "sigaction failed");
             }
         }
-
-    pid_t pid = fork();
-    if (pid == -1) {
-        perror("fork");
-        fatal(71, "fork failed");
-        }
-    if (pid == 0) {
-        // child
-        execvp(argv[1], argv + 1);
-        perror("exec");
-        fatal(65, "exec failed");
-        }
-    // parent
-
     // "Preload" one slot to help with initial burst of activity which will not be immediately reflected in loadavg, for cases when started for a specific, intensive task that (hopefully) doesn't last long, like compiling.
     add_slot();
     // Then start checking regularly.
@@ -179,18 +239,88 @@ int main(int argc, char **argv) {
     while (true) {
         alarm(delay);
         int status;
-        pid_t rc = waitpid(pid, &status, 0);
+        pid_t rc = waitpid(child_pid, &status, 0);
         if (rc == -1) {
             if (errno != EINTR) {
                 perror("waitpid");
                 fatal(71, "waitpid failed");
                 }
             }
-        else if (rc == pid) {
+        else if (rc == child_pid) {
             if (WIFEXITED(status)) return WEXITSTATUS(status);
             else if (WIFSIGNALED(status)) return WTERMSIG(status) + 128;
             }
         if (slot_change()) delay = 10;
         else delay = 60;
         }
+    }
+int main(int argc, char **argv) {
+    { // parse options
+        char const *x = strrchr((prog_name = argv[0]), '/');
+        if (x) prog_name = x + 1;
+        char **rest = 0;
+        int rc = parse_options(argv + 1, &rest);
+        if (rc) return rc;
+        argc -= rest - argv;
+        argv = rest;
+        }
+    // % SLOTS CMD..
+    if (argc < 2) fatal(70, "not enough arguments");
+    { // setup pipe
+        int fds[2] = {-1, -1};
+        if (pipe(fds)) {
+            perror("pipe");
+            fatal(71, "pipe failed");
+            }
+        read_fd = fds[0];
+        write_fd = fds[1];
+        if (start_fd) {
+            if (read_fd < start_fd) {
+                read_fd = fcntl(fds[0], F_DUPFD, start_fd);
+                if (read_fd == -1) {
+                    perror("fcntl");
+                    fatal(69, "fcntl failed");
+                    }
+                close(fds[0]);
+                }
+            if (write_fd < start_fd) {
+                write_fd = fcntl(fds[1], F_DUPFD, start_fd);
+                if (write_fd == -1) {
+                    perror("fcntl");
+                    fatal(69, "fcntl failed");
+                    }
+                close(fds[1]);
+                }
+            }
+        }
+    int slots;
+    if (!to_int(&slots, argv[0]) || slots < 1)
+        fatal(70, "expected first argument to be a number >= 1");
+    ++argv, --argc;
+    { // add initial tokens
+        --slots; // child will start with one
+        while (slots) {
+            int n = write(write_fd, "xxxxxxxxxxxxxxxx", (slots < 16 ? slots : 16));
+            if (n == -1 && errno != EINTR) {
+                perror("write");
+                fatal(70, "write failed");
+            }
+            slots -= n;
+            }
+        }
+    if (!start_float) return do_exec(argv);
+    pid_t pid = fork();
+    if (pid == -1) {
+        perror("fork");
+        fatal(71, "fork failed");
+        }
+    if (pid == 0) {
+        // child
+        return do_exec(argv);
+        }
+    // parent
+    set_target(slots);
+    leak_warning = slots;
+    if (leak_warning < INT_MAX / 2) leak_warning *= 2;
+    return do_float(pid);
     }
