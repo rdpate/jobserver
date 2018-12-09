@@ -1,6 +1,0 @@
-#!/bin/sh -ue
-#.help
-# % CMD..
-MAKEFLAGS="$(printf %s "${MAKEFLAGS-}" | sed -r 's/(^| )--jobserver-(auth|fds)=[^ ]*//g') -j --jobserver-auth=$JOBSERVER_FDS --jobserver-fds=$JOBSERVER_FDS"
-export MAKEFLAGS
-exec "$@"

@@ -39,9 +39,8 @@ for x; do
         esac
     done
 case "$found" in
-    # this could be more explicit in that numbers are required
     ?*,?*)
-        #TODO: test if these are open fds or just leftover in environ
+        # TODO: test if these are open fds or just leftover in environ
         if $debug; then
             printf %s\\n "# jobserver running; read fd: ${found%,*}, write fd: ${found#*,}"
             if [ -n "${JOBSERVER-}" ]; then

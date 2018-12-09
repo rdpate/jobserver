@@ -32,21 +32,6 @@ void nonfatal(char const *fmt, ...) {
     fputc('\n', stderr);
     }
 
-static char const *var_name = "PIPE_FDS";
-static bool is_valid_var_name(char const *name) {
-    if (!*name) return false;
-    if ('0' <= *name && *name <= '9') return false;
-    for (; *name; ++name) {
-        if ('0' <= *name && *name <= '9') {}
-        else if ('A' <= *name && *name <= 'Z') {}
-        else if ('a' <= *name && *name <= 'z') {}
-        else if (*name == '_') {}
-        else return false;
-        }
-    return true;
-    }
-
-static int start_fd = 0;
 static bool to_int(int *dest, char const *s) {
     char const *end;
     errno = 0;
@@ -139,18 +124,7 @@ static bool slot_change() {
 
 static bool start_float = true;
 static int handle_option(char const *name, char const *value) {
-    if (!strcmp(name, "var")) {
-        if (!is_valid_var_name(value)) {
-            fatal(64, "invalid env variable name: %s", value);
-            }
-        var_name = value;
-        }
-    else if (!strcmp(name, "start")) {
-        if (!to_int(&start_fd, value) || start_fd < 0) {
-            fatal(64, "invalid start fd: %s", value);
-            }
-        }
-    else if (!strcmp(name, "no-float")) {
+    if (!strcmp(name, "no-float")) {
         if (value) fatal(64, "unexpected value for option no-float");
         start_float = false;
         }
@@ -209,14 +183,60 @@ static int parse_options(char **args, char ***rest) {
     return rc;
     }
 
+static char const *makeflags_subtract() {
+    char *makeflags = getenv("MAKEFLAGS");
+    if (!makeflags) return "";
+    char *end = makeflags + strlen(makeflags) + 1;
+    char *start = makeflags;
+    while ((start = strstr(start, " --jobserver-auth="))) {
+        char const* next = strchr(start + 1, ' ');
+        if (!next) {
+            *start = '\0';
+            break;
+            }
+        memmove(start, next, strlen(next) + 1);
+        }
+    start = makeflags;
+    while ((start = strstr(start, " --jobserver-fds="))) {
+        char const* next = strchr(start + 1, ' ');
+        if (!next) {
+            *start = '\0';
+            break;
+            }
+        memmove(start, next, strlen(next) + 1);
+        }
+    start = makeflags + strlen(makeflags) + 1;
+    memset(start, '\0', end - start);
+    return makeflags;
+    }
 static int do_exec(char **argv) {
     if (read_fd > 99999 || write_fd > 99999) return 70;
-    int newlen = strlen(var_name) +  1 + 5 + 1 + 5 + 1;
-    //                               '=' %d  ',' %d  '\0'
-    char *var = malloc(newlen);
-    if (!var) return 70;
-    sprintf(var, "%s=%d,%d", var_name, read_fd, write_fd);
-    putenv(var);
+
+    { // export JOBSERVER_FDS
+        int newlen = 14 +           5 + 1 + 5 + 1;
+        // strlen("JOBSERVER_FDS=") %d  ',' %d  '\0'
+        char *var = malloc(newlen);
+        if (!var) {
+            perror("malloc");
+            fatal(70, "malloc failed");
+            }
+        sprintf(var, "JOBSERVER_FDS=%d,%d", read_fd, write_fd);
+        putenv(var);
+        }
+
+    { // export MAKEFLAGS, after adjustment
+        char const *makeflags = makeflags_subtract();
+        char const *add = "MAKEFLAGS=%s -j --jobserver-auth=%d,%d --jobserver-fds=%d,%d";
+        //                 1       10        20        30        40        50        60
+        // increasing strlen(makeflags) by 70: 60 - 2 (%s) + 12 (4x %d, possible +3 each)
+        char *new_flags = malloc(strlen(makeflags) + 70 + 1);
+        if (!new_flags) {
+            perror("malloc");
+            fatal(70, "malloc failed");
+            }
+        sprintf(new_flags, add, makeflags, read_fd, write_fd, read_fd, write_fd);
+        putenv(new_flags);
+        }
 
     execvp(argv[0], argv);
     perror("exec");
@@ -274,6 +294,7 @@ int main(int argc, char **argv) {
             }
         read_fd = fds[0];
         write_fd = fds[1];
+        int const start_fd = 0; // once rewritten without shell, set to 100
         if (start_fd) {
             if (read_fd < start_fd) {
                 read_fd = fcntl(fds[0], F_DUPFD, start_fd);
