@@ -24,4 +24,3 @@ else
         }
     trap release exit
     fi
-

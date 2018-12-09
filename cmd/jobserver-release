@@ -1,5 +1,5 @@
 #!/bin/sh -ue
-. "$(dirname "$0")/_release"
+. "$(dirname "$0")/_release.sh"
 
 keep_stdin=false
 handle_option() {
