@@ -15,8 +15,11 @@
 #     --no-blanks           ignore blank lines (default)
 #     --no-comments         ignore lines matching /^ *#/ (default)
 #     --strip               strip leading and trailing spaces (default)
+#
+# Environment:
+#   LINE                    line number, exported to CMD
 
-#TODO: better example
+# TODO: better example
 # Example:
 #   # new jobserver limited to 4 slots for sake of example
 #   $ seq 1 9 | cmd/jobserver init --new --slots=4 doc/xlines \

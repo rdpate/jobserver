@@ -10,8 +10,6 @@ Run task/build, then task/test.
 
 Redo is used, either install redo or read task/build and default.do to execute those steps manually.  To install, symlink cmd/jobserver into $PATH (or cp cmd/\*jobserver\* dir\_in\_PATH/).
 
-See the examples provided in doc, of which doc/xlines is roughly equivalent to "xargs -d\\\\n -n1 -PN", where N is the number of slots (see Defaults).
-
 Run your entire shell session under Jobserver (exec jobserver init "$SHELL") or customize particular commands (see doc/make-shim).  For example, run all tmux panes (everything started within a tmux session) under a shared Jobserver:
 
     # if $PATH includes below location before system directories
@@ -46,6 +44,9 @@ Write a shell script to run under Jobserver, starting if needed:
 
     # Don't forget to wait for those background jobs!
     trap wait exit
+
+An example of the above is doc/xlines, which is roughly equivalent to "xargs -d\\\\n -n1 -PN", where N is the number of slots (see Defaults).
+
 
 ## Defaults
 
