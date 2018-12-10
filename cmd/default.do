@@ -1,9 +1,13 @@
 exec >&2
-case "$1" in
-    all) exec redo-ifchange _init2 ;;
-    _init2) ;;
-    *) exit 1 ;;
-    esac
-redo-ifchange "$1".c
-cc -O2 -o"$3" "$1".c
-#strip "$3"
+fatal() { rc="$1"; shift; printf %s\\n "${0##*/} error: $*" >&2; exit "$rc"; }
+
+src="../src/$1.c"
+[ -e "$src" ] || fatal 66 "unknown target: $1"
+
+( exec 0>.gitignore
+    flock 0 || fatal 70 "flock failed"
+    grep -q -F -x "/$1" .gitignore || printf %s\\n "/$1" >>.gitignore
+    )
+
+redo-ifchange "$src"
+cc -O2 -o"$3" "$src"

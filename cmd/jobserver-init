@@ -97,4 +97,4 @@ if $debug; then
     fi
 JOBSERVER="$(readlink -f "$(dirname "$0")")/jobserver"
 export JOBSERVER
-exec "$(dirname "$JOBSERVER")/_init2" $float "$slots" "$@"
+exec "$(dirname "$JOBSERVER")/_jobserver-init2" $float "$slots" "$@"

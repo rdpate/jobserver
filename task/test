@@ -1,34 +1,32 @@
 #!/bin/sh -ue
 cd "$(dirname "$0")/.."
 task/build
+exec </dev/null
 
-unset MAKEFLAGS
+unset JOBSERVER
 unset JOBSERVER_FDS
+unset MAKEFLAGS
+
 jobserver="$(readlink -f cmd/jobserver)"
 export jobserver
+_funcs="$(readlink -f test/_funcs.sh)"
 
-cd test
-_funcs="$(readlink -f _funcs.sh)"
-exec </dev/null
 run_tests() {  # [PREFIX]
     for x in *; do
-        case "$x" in
-            _*) continue ;;
-            esac
-        cur="${1-}$x"
+        case "$x" in _*) continue ;; esac
         if [ -d "$x" ]; then
             (cd "$x" && run_tests "${1-}$x/")
             continue
             fi
-        printf %s\\n "--- $cur"
+        printf %s\\n "--- ${1-}$x"
         case "$x" in
             *_js.sh)
                 "$jobserver" init --new \
-                /bin/sh -u -e -c '. "$1"; . ./"$2"' test "$_funcs" "$x"
+                /bin/sh -u -e -c '. "$1"; . "$2"' test "$_funcs" "./$x"
                 continue
                 ;;
             *.sh)
-                /bin/sh -u -e -c '. "$1"; . ./"$2"' test "$_funcs" "$x"
+                /bin/sh -u -e -c '. "$1"; . "$2"' test "$_funcs" "./$x"
                 continue
                 ;;
             esac
@@ -36,8 +34,9 @@ run_tests() {  # [PREFIX]
             ./"$x"
             continue
             fi
-        printf %s\\n "unknown test type: $cur" >&2
-        exit 1
+        printf %s\\n 'unknown test type' >&2
+        exit 70
         done
     }
+cd test
 run_tests
