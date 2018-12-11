@@ -1,7 +1,10 @@
-fail() {  # RC MSG [PREMSG]
-    [ -z "${3-}" ] || printf %s\\n "$3"
-    printf %s\\n "fail $1 $2"
-    exit "$1"
+fail() {  # RC MSG [PREMSG..]
+    rc="$1"
+    msg="$2"
+    shift 2
+    for x; do printf %s\\n "$x"; done
+    printf %s\\n "fail $rc $msg"
+    exit "$rc"
 }
 squote() {
     local x
@@ -43,5 +46,5 @@ assert_nonempty() {  # RC NAME; test $NAME is non-empty
     }
 
 assert_equals() {  # RC EXPECTED ACTUAL
-    [ x"$2" = x"$3" ] || fail "$1" "actual: $(squote "$2")" "     expected: $(squote "$3")"
+    [ x"$2" = x"$3" ] || fail "$1" '' "expected: $(squote "$3")" "  actual: $(squote "$2")"
     }

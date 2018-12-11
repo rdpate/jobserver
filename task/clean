@@ -5,3 +5,4 @@ while read -r x; do
     [ -e "$x" ] || continue
     rm -r -f "$x"
 done
+rm -r -f src/.*.dep

@@ -3,11 +3,9 @@ fatal() { rc="$1"; shift; printf %s\\n "${0##*/} error: $*" >&2; exit "$rc"; }
 
 src="../src/$1.c"
 [ -e "$src" ] || fatal 66 "unknown target: $1"
-
-( exec 0>.gitignore
-    flock 0 || fatal 70 "flock failed"
-    grep -q -F -x "/$1" .gitignore || printf %s\\n "/$1" >>.gitignore
-    )
+dep="../src/.$1.dep"
 
 redo-ifchange "$src"
-cc -O2 -o"$3" "$src"
+cc -MD -MF "$dep" -O2 -o"$3" "$src"
+sed -i -r 's/^[^ ]+: //; s/ \\$//; s/^ +| +$//g; s/ +/\n/g; /^$/d' "$dep"
+xargs redo-ifchange <"$dep"

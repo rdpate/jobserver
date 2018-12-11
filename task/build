@@ -1,3 +1,6 @@
 #!/bin/sh -ue
 cd "$(dirname "$0")/.."
-printf %s\\n src/*.c | sed -r 's/\.c$//; s/^src/cmd/' | xargs redo-ifchange
+printf %s\\n src/*.c | \
+grep -v '\.inc.c$' | \
+sed -r 's/\.c$//; s,^src/,cmd/,' | \
+xargs redo-ifchange

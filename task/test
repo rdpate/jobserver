@@ -7,9 +7,12 @@ unset JOBSERVER
 unset JOBSERVER_FDS
 unset MAKEFLAGS
 
-jobserver="$(readlink -f cmd/jobserver)"
+project="$(readlink -f .)"
+export project
+PATH="$project/cmd:$PATH"
+jobserver="$project/cmd/jobserver"
 export jobserver
-_funcs="$(readlink -f test/_funcs.sh)"
+_funcs="$project/test/_funcs.sh"
 
 run_tests() {  # [PREFIX]
     for x in *; do
@@ -22,11 +25,11 @@ run_tests() {  # [PREFIX]
         case "$x" in
             *_js.sh)
                 "$jobserver" init --new \
-                /bin/sh -u -e -c '. "$1"; . "$2"' test "$_funcs" "./$x"
+                /bin/sh -u -e -c '. "$1"; . "$0"' "./$x" "$_funcs"
                 continue
                 ;;
             *.sh)
-                /bin/sh -u -e -c '. "$1"; . "$2"' test "$_funcs" "./$x"
+                /bin/sh -u -e -c '. "$1"; . "$0"' "./$x" "$_funcs"
                 continue
                 ;;
             esac
