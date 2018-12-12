@@ -2,7 +2,7 @@
 # this is really a test that either:
 # * /dev/fd exists
 # * /bin/sh handles FD redirection for FDs >9
-assert_success 1 \
+assert_success \
     "$jobserver" init --new \
     "$jobserver" init --new \
     "$jobserver" init --new \

@@ -1,10 +1,9 @@
-fail() {  # RC MSG [PREMSG..]
-    rc="$1"
-    msg="$2"
-    shift 2
+fail() {  # MSG [PREMSG..]
+    msg="$1"
+    shift
     for x; do printf %s\\n "$x"; done
-    printf %s\\n "fail $rc $msg"
-    exit "$rc"
+    printf %s\\n "fail $msg"
+    exit 1
 }
 squote() {
     local x
@@ -23,28 +22,22 @@ squote() {
         done
     }
 
-assert_success() {  # RC CMD..
-    local rc output
-    rc="$1"
-    shift
-    output="$("$@" 2>&1)" || fail "$rc" "expected command success: $*" "$output"
+assert_success() {  # CMD..
+    output="$("$@" 2>&1)" || fail "expected command success: $*" "$output"
     }
-assert_fails() {  # RC CMD..
-    local rc output
-    rc="$1"
-    shift
-    output="$("$@" 2>&1)" && fail "$rc" "expected command failure: $*" "$output" || true
+assert_fails() {  # CMD..
+    output="$("$@" 2>&1)" && fail "expected command failure: $*" "$output" || true
     }
 
-assert_empty() {  # RC NAME; test $NAME is empty
-    set -- "$@" "$(eval printf %s \"\${$2-}\")"
-    [ -z "$3" ] || fail "$1" "expected empty $2 value" "$2=$3"
+assert_empty() {  # NAME; test $NAME is empty
+    set -- "$1" "$(eval printf %s \"\${$1-}\")"
+    [ -z "$2" ] || fail "expected empty $1 value" "$1=$2"
     }
-assert_nonempty() {  # RC NAME; test $NAME is non-empty
-    set -- "$@" "$(eval printf %s \"\${$2-}\")"
-    [ -n "$3" ] || fail "$1" "expected non-empty $2 value"
+assert_nonempty() {  # NAME; test $NAME is non-empty
+    set -- "$1" "$(eval printf %s \"\${$1-}\")"
+    [ -n "$2" ] || fail "$1" "expected non-empty $1 value"
     }
 
-assert_equals() {  # RC EXPECTED ACTUAL
-    [ x"$2" = x"$3" ] || fail "$1" '' "expected: $(squote "$3")" "  actual: $(squote "$2")"
+assert_equals() {  # EXPECTED ACTUAL
+    [ x"$1" = x"$2" ] || fail equals "expected: $(squote "$1")" "  actual: $(squote "$2")"
     }
