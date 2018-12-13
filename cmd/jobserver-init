@@ -92,9 +92,9 @@ if [ -z "$slots" ]; then
         slots="$default_slots"
         fi
     fi
-if $debug; then
-    set -- sh -c '"$0" --debug; exec "$@"' "$jobserver-started" "$@"
-    fi
 JOBSERVER="$(readlink -f "$(dirname "$0")")/jobserver"
 export JOBSERVER
+if $debug; then
+    set -- sh -c '"$0" --debug; exec "$@"' "$JOBSERVER-started" "$@"
+    fi
 exec "$(dirname "$JOBSERVER")/_jobserver-init2" $float "$slots" "$@"
