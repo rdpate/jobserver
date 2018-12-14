@@ -1,10 +1,8 @@
 #!/bin/sh -Cue
 #.help
-# % init CMD..
-# % started
-# % release CMD.. &
-# % acquire
-# % sleeping
+# % (init|release|acquire) ...
+#
+# Manage a Jobserver pool of active job slots.
 #
 # Subcommands:
 #   init CMD..
@@ -21,10 +19,14 @@
 #         --keep-stdin          stdin has been redirected for CMD
 #   acquire
 #     After passing slot to background task, acquire another to start work.
+#
+# Uncommon subcommands:
 #   sleep-start
 #     Release active slot; must use sleep-end when ready to start work.
 #   sleep-end
 #     Re-acquire active slot after sleep-start.
+#   sync-exec CMD..
+#     Run CMD without Jobserver, if active.
 #
 # Example:
 #   #!/bin/sh -Cue

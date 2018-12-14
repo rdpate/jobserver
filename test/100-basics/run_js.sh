@@ -1,5 +1,4 @@
-x="$(seq 1 10 | "$project/doc/xlines" echo | wc -l)"
-assert_equals  10 "$x"
+assert_equals  10 "$(seq 1 10 | "$project/doc/xlines" echo | wc -l)"
 
 assert_success jobserver started --debug
 assert_fails   jobserver started --debug true
