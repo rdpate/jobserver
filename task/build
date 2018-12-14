@@ -1,4 +1,4 @@
-#!/bin/sh -ue
+#!/bin/sh -Cue
 cd "$(dirname "$0")/.."
 printf %s\\n src/*.c | \
 grep -v '\.inc.c$' | \

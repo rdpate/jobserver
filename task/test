@@ -1,4 +1,4 @@
-#!/bin/sh -ue
+#!/bin/sh -Cue
 cd "$(dirname "$0")/.."
 task/build
 exec </dev/null

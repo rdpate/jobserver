@@ -18,7 +18,7 @@ Run your entire shell session under Jobserver (exec jobserver init "$SHELL") or 
     $ tmux="$(which -a tmux | grep -v -F -x "$file" | head -n1)"
     $ echo $tmux
     $ cat <<END >"$file"
-    #!/bin/sh -ue
+    #!/bin/sh -Cue
     if [ \$# = 0 ] || [ new = "$1" -o new-session = "$1" ]; then
         exec jobserver init $tmux "$@"
     fi

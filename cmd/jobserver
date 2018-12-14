@@ -1,4 +1,4 @@
-#!/bin/sh -ue
+#!/bin/sh -Cue
 #.help
 # % init CMD..
 # % started
@@ -27,7 +27,7 @@
 #     Re-acquire active slot after sleep-start.
 #
 # Example:
-#   #!/bin/sh -ue
+#   #!/bin/sh -Cue
 #   # first way:
 #   printf %s\\n "$@" | xlines -a du -s
 #   # (if args do not contain newline)

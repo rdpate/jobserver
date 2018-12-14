@@ -1,4 +1,4 @@
-#!/bin/sh -ue
+#!/bin/sh -Cue
 fatal() { rc="$1"; shift; printf %s\\n "${0##*/} error: $*" >&2; exit "$rc"; }
 nonfatal() { printf %s\\n "${0##*/}: $*" >&2; }
 is_digits() { local x; for x; do case "$x" in *[!0-9]*|'') return 1 ;; *) ;; esac done; }
