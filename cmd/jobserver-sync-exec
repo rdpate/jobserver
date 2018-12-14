@@ -1,16 +1,7 @@
 #!/bin/sh -Cue
-. "$(dirname "$0")/_release.sh"
+fatal() { rc="$1"; shift; printf %s\\n "${0##*/} error: $*" >&2; exit "$rc"; }
 
-keep_stdin=false
-handle_option() {
-    case "$1" in
-        keep-stdin)
-            [ $# = 1 ] || fatal 64 "unexpected value for option $1"
-            keep_stdin=true
-            ;;
-        *) fatal 64 "unknown option $1" ;;
-        esac
-    }
+handle_option() { fatal 64 "unknown option $1"; }
 while [ $# -gt 0 ]; do
     case "$1" in
         --) shift; break ;;
@@ -26,7 +17,10 @@ while [ $# -gt 0 ]; do
         *) break ;;
         esac
     done
-
 [ $# != 0 ] || fatal 64 'missing CMD argument'
-$keep_stdin || exec </dev/null
-command "$@"
+
+unset JOBSERVER_FDS
+# TODO: close JOBSERVER_FDS
+unset MAKEFLAGS
+# TODO: should decouple from MAKEFLAGS..
+exec "$@"

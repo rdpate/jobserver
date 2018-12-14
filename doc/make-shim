@@ -1,4 +1,4 @@
-#!/bin/sh -ue
+#!/bin/sh -Cue
 #.help
 # % [CMD..]
 #
@@ -9,7 +9,7 @@
 #
 #   # if $PATH includes ~/.local/bin
 #   $ tmux="$(which tmux)" && cat <<END >~/.local/bin/tmux
-#   #!/bin/sh -ue
+#   #!/bin/sh -Cue
 #   if [ \$# = 0 ]; then
 #       exec jobserver init $tmux new -A
 #   fi
@@ -60,6 +60,6 @@ squote() {
     }
 
 cat <<END
-#!/bin/sh -ue
+#!/bin/sh -Cue
 exec jobserver init $(squote "$@") "\$@"
 END

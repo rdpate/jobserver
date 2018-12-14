@@ -1,3 +1,3 @@
-#!/bin/sh -ue
+#!/bin/sh -Cue
 . "$(dirname "$0")/_release.sh"
 [ $# = 0 ] || nonfatal 'unknown options/arguments (ignored)'

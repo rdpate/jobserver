@@ -1,10 +1,13 @@
-#!/bin/sh -ue
+#!/bin/sh -Cue
 #.help
 # % init CMD..
 # % started
 # % release CMD.. &
 # % acquire
 # % sleeping
+# % sync-exec CMD..
+#
+# Manage a Jobserver pool of active job slots.
 #
 # Subcommands:
 #   init CMD..
@@ -25,9 +28,11 @@
 #     Release active slot; must use sleep-end when ready to start work.
 #   sleep-end
 #     Re-acquire active slot after sleep-start.
+#   sync-exec CMD..
+#     Run CMD without Jobserver, if active.
 #
 # Example:
-#   #!/bin/sh -ue
+#   #!/bin/sh -Cue
 #   # first way:
 #   printf %s\\n "$@" | xlines -a du -s
 #   # (if args do not contain newline)
