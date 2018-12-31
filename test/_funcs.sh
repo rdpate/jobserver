@@ -52,13 +52,21 @@ assert_nonempty() {  # NAME; test $NAME is non-empty
     [ -n "$2" ] || failed "nonempty $1" "expected non-empty $1 variable"
     }
 
-assert_equals() {  # EXPECTED ACTUAL [MSG [OTHER]]
+assert_equals() {  # EXPECTED ACTUAL [MSG..]
     if [ x"$1"x != x"$2"x ]; then
         e="expected: $(squote "$1")"
         a="  actual: $(squote "$2")"
         shift 2
-        m=
-        [ $# = 0 ] || { m="${1-}"; shift; }
-        failed equals"${m:+ $m}" "$@" "$e" "$a"
+        set -- "$@" "$e" "$a"
+        failed equals "$@"
+        fi
+    }
+assert_different() {  # EXPECTED ACTUAL [MSG..]
+    if [ x"$1"x = x"$2"x ]; then
+        e='expected: (anything else)'
+        a="  actual: $(squote "$2")"
+        shift 2
+        set -- "$@" "$e" "$a"
+        failed different "$@"
         fi
     }

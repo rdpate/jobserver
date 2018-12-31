@@ -27,3 +27,7 @@ if (assert_equals 'a b' 'a bc') >/dev/null; then
     failed 'assert_equals passed on different values'
     fi
 
+assert_different a b
+if (assert_different a a) >/dev/null; then
+    failed 'assert_different passed on different values'
+    fi
