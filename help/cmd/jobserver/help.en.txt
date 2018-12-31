@@ -1,0 +1,27 @@
+% (init|release|acquire|...) ...
+
+Manage a Jobserver pool of active job slots.
+
+Subcommands:
+  init CMD..
+    Initialize a new pool and run CMD.
+        --new                 don't reuse existing pool
+        --slots=N             start with N slots
+        --no-float            don't monitor pool to add slots
+        --debug               show debug details
+  started
+    Exit 0 if started, 69 if not started, or other for error.
+        --debug               show debug details
+  release CMD.. &
+    Pass active slot to CMD and then release slot when done.
+        --keep-stdin          stdin has been redirected for CMD
+  acquire
+    After passing slot to background task, acquire another to start work.
+
+Uncommon subcommands:
+  sleep-start
+    Release active slot; must use sleep-end when ready to start work.
+  sleep-end
+    Re-acquire active slot after sleep-start.
+  sync-exec CMD..
+    Run CMD without Jobserver, if active.

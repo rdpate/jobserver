@@ -1,14 +1,14 @@
-#include "common.inc.c"
-#include "get_fds.inc.c"
+#include "common.h"
+#include "get_fds.h"
 
 static bool keep_stdin = false;
-static int handle_option(char const *name, char const *value) {
+static int handle_option(char const *name, char const *value, void *_data) {
     if (!strcmp(name, "keep-stdin")) {
         if (value) fatal(64, "unexpected value for option keep-stdin");
         keep_stdin = true;
         }
     else {
-        nonfatal("unknown option: %s (ignored)", name);
+        nonfatal("unknown option %s (ignored)", name);
         return 64;
         }
     return 0;
@@ -66,18 +66,8 @@ static int main2(char **argv) {
         }
     return rc;
     }
-int main(int argc, char **argv) {
-    int rc;
-    { // parse options
-        char const *x = strrchr((prog_name = argv[0]), '/');
-        if (x) prog_name = x + 1;
-        char **rest = 0;
-        rc = parse_options(argv + 1, &rest);
-        if (rc == 0) {
-            argc -= rest - argv;
-            argv = rest;
-            }
-        }
+int main_release(int argc, char **argv) {
+    int rc = parse_options(&argc, &argv, &handle_option, NULL);
     int write_fd = get_write_fd();
     if (rc == 0) {
         if (!argc) {
@@ -86,6 +76,9 @@ int main(int argc, char **argv) {
             }
         else rc = main2(argv);
         }
-    int _ = write(write_fd, "x", 1);
+    if (write_all(write_fd, "x", 1) == -1) {
+        perror("write");
+        if (rc == 0) rc = 71;
+        }
     return rc;
     }

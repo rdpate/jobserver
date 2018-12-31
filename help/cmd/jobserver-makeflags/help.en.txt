@@ -1,0 +1,6 @@
+% [CMD..]
+
+Add Jobserver to $MAKEFLAGS and run CMD.  Without CMD, output resulting value of $MAKEFLAGS.
+
+Options:
+    --dup                 dup(2) Jobserver file descriptors

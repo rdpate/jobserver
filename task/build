@@ -1,6 +1,26 @@
 #!/bin/sh -Cue
-cd "$(dirname "$0")/.."
-printf %s\\n src/*.c | \
-grep -v '\.inc.c$' | \
-sed -r 's/\.c$//; s,^src/,cmd/,' | \
-xargs redo-ifchange
+
+# auto-parallelize redo
+# note: uses jobserver from $PATH and not from repo
+if which jobserver >/dev/null 2>&1; then
+    jobserver started || {
+        set -- "$0" "$@"
+        if which jobserver-makeflags >/dev/null 2>&1; then
+            set -- jobserver-makeflags "$@"
+            fi
+        exec jobserver init "$@"
+        }
+    fi
+
+proj="$(dirname "$0")/.."
+[ -d "$proj/.redo" ] || mkdir "$proj/.redo"
+
+if [ $# != 0 ]; then
+    redo "$@"
+else
+    cd "$proj"
+    for x in src/*.link; do
+        [ -e "$x" ] || continue
+        printf %s\\n "cmd/$(basename "$x" .link)"
+        done | xargs redo-ifchange
+    fi

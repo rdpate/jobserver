@@ -1,3 +1,2 @@
-/_jobserver-init2
-/jobserver-release
-/jobserver-sleep-start
+/jobserver
+/jobserver-makeflags

@@ -4,5 +4,5 @@ redo-targets | \
 while read -r x; do
     [ -e "$x" ] || continue
     rm -r -f "$x"
-done
+    done
 rm -r -f src/.*.dep

@@ -24,11 +24,11 @@ squote() {
 
 assert_success() {  # CMD..
     output="$("$@" 2>&1)" ||
-    failed "expected command success: $*" "${output:-(no output)}"
+    failed "expected command success: $(squote "$@")" "${output:-(no output)}"
     }
 assert_fails() {  # CMD..
     output="$("$@" 2>&1)" &&
-    failed "expected command failure: $*" "${output:-(no output)}" || true
+    failed "expected command failure: $(squote "$@")" "${output:-(no output)}" || true
     }
 assert_exitcode() {  # CODE CMD..
     ec="$1"
@@ -36,9 +36,9 @@ assert_exitcode() {  # CODE CMD..
     if [ 0 = "$ec" ]; then
         assert_success "$@"
     else
-        output="$("$@" 2>&1)" && failed "expected command failure: $*" "$output" || rc=$?
+        output="$("$@" 2>&1)" && failed "expected command failure: $(squote "$@")" "$output" || rc=$?
         if [ "$rc" != "$ec" ]; then
-            failed "expected exit code $ec, got $rc: $*" "${output:-(no output)}"
+            failed "expected exit code $ec, got $rc: $(squote "$@")" "${output:-(no output)}"
             fi
         fi
     }

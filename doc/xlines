@@ -36,7 +36,7 @@ jobserver="$(which jobserver 2>/dev/null)" || {
 
 jobserver started || exec jobserver init "$0" "$@"
 
-fatal() { rc="$1"; shift; printf %s\\n "${0##*/} error: $*" >&2; exit "$rc"; }
+fatal() { rc="$1"; shift; printf %s\\n "${0##*/} error: $*" >&2 || true; exit "$rc"; }
 
 blanks=false
 comments=false
