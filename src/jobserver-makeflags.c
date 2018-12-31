@@ -47,19 +47,15 @@ int main(int argc, char **argv) {
         if (!argc) fatal(64, "cannot dup(2) without CMD");
         // dup(2) for MAKEFLAGS to prevent GNU Make from closing only copy
         int const start_fd = 100;
-        if (read_fd < start_fd) {
-            read_fd = fcntl(read_fd, F_DUPFD, start_fd);
-            if (read_fd == -1) {
-                perror("fcntl");
-                fatal(69, "fcntl failed");
-                }
+        read_fd = fcntl(read_fd, F_DUPFD, start_fd);
+        if (read_fd == -1) {
+            perror("fcntl");
+            fatal(69, "fcntl failed");
             }
-        if (write_fd < start_fd) {
-            write_fd = fcntl(write_fd, F_DUPFD, start_fd);
-            if (write_fd == -1) {
-                perror("fcntl");
-                fatal(69, "fcntl failed");
-                }
+        write_fd = fcntl(write_fd, F_DUPFD, start_fd);
+        if (write_fd == -1) {
+            perror("fcntl");
+            fatal(69, "fcntl failed");
             }
         }
     char const *makeflags;
