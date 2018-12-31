@@ -14,7 +14,7 @@ static bool extract_fds(char *s, char **rest, int *dest) {
         return false;
         }
     long second = strtol(*rest + 1, rest, 10);
-    if (**rest != ' ' && **rest != '\0') {
+    if (**rest != '\0') {
         errno = EINVAL;
         return false;
         }
