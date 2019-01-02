@@ -19,8 +19,14 @@ if [ $# != 0 ]; then
     redo "$@"
 else
     cd "$proj"
-    for x in src/*.link; do
+    for x in */*.link; do
         [ -e "$x" ] || continue
-        printf %s\\n "cmd/$(basename "$x" .link)"
-        done | xargs redo-ifchange
+        x="${x%.link}"
+        printf %s\\0 "$x"
+        case "$x" in
+            src/*.link)
+                printf %s\\0 "cmd/${x#src/}"
+                ;;
+            esac
+        done | xargs -0 redo-ifchange
     fi

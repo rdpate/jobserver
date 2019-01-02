@@ -1,0 +1,3 @@
+../lib/jobserver.o
+../lib/jobserver_fatal.o
+-lrt
