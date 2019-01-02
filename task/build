@@ -24,7 +24,7 @@ else
         x="${x%.link}"
         printf %s\\0 "$x"
         case "$x" in
-            src/*.link)
+            src/*)
                 printf %s\\0 "cmd/${x#src/}"
                 ;;
             esac
