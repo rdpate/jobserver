@@ -1,3 +1,6 @@
+#ifndef INCLUDE_GUARD_bf8071438adf386868d5d41cdb317ddb
+#define INCLUDE_GUARD_bf8071438adf386868d5d41cdb317ddb
+
 #include <errno.h>
 #include <limits.h>
 #include <signal.h>
@@ -28,3 +31,5 @@ int main_no_options(int *pargc, char ***pargv);
 ssize_t write_all(int fd, void const *data, size_t size);
 
 bool to_int(int *dest, char const *s);
+
+#endif
