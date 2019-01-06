@@ -10,7 +10,7 @@ proj="$(dirname "$0")/.."
 [ -d "$proj/.redo" ] || mkdir "$proj/.redo"
 
 if [ $# != 0 ]; then
-    exec redo "$@"
+    exec redo-ifchange "$@"
     fi
 
 findr() { # find non-hidden names

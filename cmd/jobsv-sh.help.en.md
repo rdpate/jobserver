@@ -1,0 +1,13 @@
+% (started|acquire)
+% release CMD.. &
+
+Manage a Jobserver with shell commands.
+
+Subcommands:
+  started
+    Exit 0 if started, 69 if not started, or other for error.
+  release CMD.. &
+    Pass active slot to CMD and then release slot when done.
+        --keep-stdin          stdin has been redirected for CMD
+  acquire
+    After passing slot to background task, acquire another to start work.

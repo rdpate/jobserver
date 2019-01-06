@@ -5,8 +5,8 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
-bool load_env_fds();
-int get_read_fd();
-int get_write_fd();
+bool load_env_fds(void);
+int get_read_fd(void);
+int get_write_fd(void);
 
 #endif

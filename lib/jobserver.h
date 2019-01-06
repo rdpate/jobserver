@@ -1,5 +1,4 @@
 #include <stdbool.h>
-#include <poll.h>
 #include <sys/types.h>
 
 // Requirements
@@ -17,7 +16,7 @@
     bool jobserver_init_or_exec(char **self_args);
         // - init or exec "jobserver init --" plus self_args
         // return: whether successful (maybe not at all)
-    bool jobserver_init_or_sync();
+    bool jobserver_init_or_sync(void);
         // - init or create synchronous jobserver (1 slot)
         // error: false
         // return: whether successful
@@ -37,19 +36,19 @@
     pid_t jobserver_bg_shell(char const *script, char const *args, ...);
         // - collect script and args into argv array
         // delegate: jobserver_bg_spawn("/bin/sh", "-uec", script, "[-c]", args);
-    bool jobserver_exiting();
+    bool jobserver_exiting(void);
         // - wait for children
         // - release/aqcquire to hold exactly 1 slot
         // error: false
         // return: success
         // note: might have inherited children, must track PIDs to know
 // Manual Forking
-    void jobserver_forked_parent();
+    void jobserver_forked_parent(void);
         // - use in parent after forking
-    void jobserver_forked_child();
+    void jobserver_forked_child(void);
         // - use in child after forking
         // - also redirects stdin from /dev/null
-    bool jobserver_waited();
+    bool jobserver_waited(void);
         // call from parent after collecting a child; return false on error
         // releases child's slot
     bool jobserver_waited_keep(int keep_slots);
@@ -58,7 +57,7 @@
         // releases child's slot if now hold more than keep_slots
         // only use keep_slots if will immediately be starting that many jobs
 // Low-level Interface
-    bool jobserver_init();
+    bool jobserver_init(void);
         // - initialize jobserver
         // - no-op if already succeeded
         // error: false, see errno
@@ -70,13 +69,13 @@
         // - save data as default data for func
         // error: false
         // return: success
-    int jobserver_ready_fd();
+    int jobserver_ready_fd(void);
         // - read fd is used to indicate job slots are ready
         // error: -1
         // return: fd
-    int jobserver_child_fd();
+    int jobserver_child_fd(void);
         // - signalfd which only receives SIGCHLD
-    bool jobserver_try_acquire();
+    bool jobserver_try_acquire(void);
         // acquire a slot without blocking
         // error: false
         // return: whether acquired

@@ -1,0 +1,8 @@
+% CMD..
+
+Manage a Jobserver pool of active job slots.
+
+Options:
+    --new                   don't reuse an existing pool
+    --slots=N               start with N slots
+    --fixed[=N]             --slots=N and don't monitor pool

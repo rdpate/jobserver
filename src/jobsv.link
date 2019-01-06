@@ -1,0 +1,8 @@
+common.o
+get_fds.o
+
+default_job_slots.o
+
+# "external" libraries
+block_readwrite.o
+unreachable.o

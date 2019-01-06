@@ -1,7 +1,7 @@
 #include "common.h"
 #include "get_fds.h"
 
-int default_job_slots();
+int default_job_slots(void);
 // defined in default_job_slots.c
 
 
@@ -9,7 +9,7 @@ static int const max_slots = 1000;
 
 static bool reuse = true;
 static int slots = 0;
-static bool floating = true;
+static bool fixed_slots = false;
 
 static double target_begin, target_load, target_end;
 static void set_target(double target) {
@@ -19,7 +19,7 @@ static void set_target(double target) {
     target_end    = target + 0.5;
     }
 static int added, leak_warning, read_fd, write_fd;
-static bool slots_are_waiting() {
+static bool slots_are_waiting(void) {
     struct pollfd x = {read_fd, POLLIN};
     int rc = poll(&x, 1, 0);
     if (rc == -1) {
@@ -29,7 +29,7 @@ static bool slots_are_waiting() {
     if (rc == 0) return false;
     return (x.revents & POLLIN);
     }
-static int slot_adjustment() {
+static int slot_adjustment(void) {
     double current = target_load;
     getloadavg(&current, 1);
     if (target_end < current) {
@@ -48,7 +48,7 @@ static int slot_adjustment() {
     return 0;  // currently within Goldilocks Zone
     }
 static int read_fd, write_fd;
-static void add_slot() {
+static void add_slot(void) {
     ssize_t x = block_write(write_fd, "x", 1);
     if (x == -1) {
         perror("write");
@@ -65,7 +65,7 @@ static void add_slot() {
         }
     UNREACHABLE
     }
-static void remove_slot() {
+static void remove_slot(void) {
     char x;
     int rc = block_read(read_fd, &x, 1);
     if (rc == 1) {
@@ -77,7 +77,7 @@ static void remove_slot() {
         fatal(69, "jobserver descriptor changed to non-blocking mode!");
     perror("read");
     }
-static bool slot_change() {
+static bool slot_change(void) {
     // Perform slot adjustment; return whether adjustment was required.
     int adj = slot_adjustment();
     if (!adj) return false;
@@ -106,7 +106,7 @@ static int do_exec(char **argv) {
     return 65;
     }
 static void no_op(int _) {}
-static int do_float(pid_t child_pid) {
+static int do_monitor(pid_t child_pid) {
     { // setup SIGALRM handler
         struct sigaction act = {};
         act.sa_handler = no_op;
@@ -136,23 +136,29 @@ static int do_float(pid_t child_pid) {
         }
     }
 
-static int handle_option(char const *name, char const *value, void *_data) {
+static void slots_value(char const *name, char const *value) {
+    if (!to_int(&slots, value) || slots < 1)
+        fatal(64, "invalid slots value %s", value);
+    if (slots > max_slots) {
+        nonfatal("capping slots at %d (instead of %d)", max_slots, slots);
+        slots = max_slots;
+        }
+    }
+static int handle_option(char const *name, char const *value, void *data) {
     if (strcmp(name, "new") == 0) {
         if (value) fatal(64, "unexpected value for option %s", name);
         reuse = false;
         }
     else if (strcmp(name, "slots") == 0) {
         if (!value || !*value) fatal(64, "missing or empty value for option %s", name);
-        if (!to_int(&slots, value) || slots < 1)
-            fatal(64, "invalid slots value %s", value);
-        if (slots > max_slots) {
-            nonfatal("capping slots at %d (instead of %d)", max_slots, slots);
-            slots = max_slots;
-            }
+        slots_value(name, value);
         }
-    else if (strcmp(name, "no-float") == 0) {
-        if (value) fatal(64, "unexpected value for option %s", name);
-        floating = false;
+    else if (strcmp(name, "fixed") == 0) {
+        fixed_slots = true;
+        if (value) {
+            if (!*value) fatal(64, "missing value for option %s", name);
+            slots_value(name, value);
+            }
         }
     else {
         fatal(64, "unknown option %s", name);
@@ -160,8 +166,8 @@ static int handle_option(char const *name, char const *value, void *_data) {
     return 0;
     }
 
-int main_init(int argc, char **argv) {
-    int rc = parse_options(&argc, &argv, &handle_option, NULL);
+int main(int argc, char **argv) {
+    int rc = main_parse_options(&argc, &argv, &handle_option, NULL);
     if (rc) return rc;
     if (argc == 0) fatal(64, "missing CMD argument");
 
@@ -216,7 +222,7 @@ int main_init(int argc, char **argv) {
             else slots -= n;
             }
         }
-    if (!floating) return do_exec(argv);
+    if (fixed_slots) return do_exec(argv);
     pid_t pid = fork();
     if (pid == -1) {
         perror("fork");
@@ -230,5 +236,5 @@ int main_init(int argc, char **argv) {
     set_target(slots);
     leak_warning = slots;
     if (leak_warning < INT_MAX / 2) leak_warning *= 2;
-    return do_float(pid);
+    return do_monitor(pid);
     }

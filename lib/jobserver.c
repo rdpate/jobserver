@@ -10,6 +10,7 @@
     #include <time.h>
 
     #include <fcntl.h>
+    #include <poll.h>
     #include <sys/signalfd.h>
     #include <sys/time.h>
     #include <sys/types.h>
@@ -25,7 +26,7 @@
         jobserver_wait_callback wait_callback;
         void *wait_callback_data;
         } self;
-    //#define log_msg(msg)            jobserver_error(0, __func__, 0, msg)
+    #define log_msg(msg)            jobserver_error(0, __func__, 0, msg)
     //#define fatal_func(func)        jobserver_error(70, func, errno, NULL)
     #define fatal_sysfunc(func)     jobserver_error(71, func, errno, NULL)
     #define fatal_msg(msg)          jobserver_error(70, __func__, 0, msg)
@@ -36,32 +37,7 @@
             } \
         } while (0)
 // High-level Interface
-    bool jobserver_init_or_exec(char **self_args) {
-        if (!self_args || !*self_args) {
-            fatal_msg("bad self_args");
-            return false;
-            }
-        if (jobserver_init()) return true;
-        if (errno != 0) return false;
-        int argc = 4 + 1;
-        for (char **x = self_args + 1; *x; x ++) argc ++;
-        char *argv[argc];
-        char **n = argv + 3;
-        argv[0] = "jobserver";
-        argv[1] = "init";
-        argv[2] = "--";
-        for (char **x = self_args; *x; x ++) {
-            *n = *x;
-            n ++;
-            }
-        *n = 0;
-        execvp(argv[0], argv);
-        fatal_sysfunc("exec");
-        return false;
-        }
-    bool jobserver_init_or_sync(jobserver_wait_callback func, void *data) {
-        if (jobserver_init()) return true;
-        if (errno != 0) return false;
+    static bool sync_fallback(void) {
         int p[2];
         if (pipe(p) == -1) {
             fatal_sysfunc("pipe");
@@ -85,6 +61,38 @@
         self.write_fd = p[1];
         self.slots_held = 1;
         return true;
+        }
+    bool jobserver_init_or_exec(char **argv) {
+        if (!argv || !*argv) {
+            fatal_msg("bad argv");
+            return false;
+            }
+        if (jobserver_init()) return true;
+        if (errno != 0) return false;
+
+        int argc = 1;
+        for (char **x = argv + 1; *x; x ++) argc ++;
+        char *new_argv[argc + 2 + 1];
+        new_argv[0] = "jobsv";
+        new_argv[1] = "--";
+        char **n = new_argv + 2;
+        for (char **x = argv; *x; x ++) {
+            *n = *x;
+            n ++;
+            }
+        *n = 0;
+        execvp(new_argv[0], new_argv);
+        if (errno == ENOENT || errno == EACCES) {
+            log_msg("synchronous fallback");
+            return sync_fallback();
+            }
+        fatal_sysfunc("exec");
+        return false;
+        }
+    bool jobserver_init_or_sync(void) {
+        if (jobserver_init()) return true;
+        if (errno != 0) return false;
+        return sync_fallback();
         }
     static int spawn(void *data) {
         char **args = data;
@@ -158,7 +166,7 @@
         va_end(ap);
         return jobserver_bg(0, argv);
         }
-    bool jobserver_exiting() {
+    bool jobserver_exiting(void) {
         check_init_return(false);
         if (self.slots_held < 0) {
             fatal_msg("too many slots released");
@@ -182,11 +190,11 @@
         return true;
         }
 // Manual Forking
-    void jobserver_forked_parent() {
+    void jobserver_forked_parent(void) {
         self.slots_held --;
         self.children ++;
         }
-    void jobserver_forked_child() {
+    void jobserver_forked_child(void) {
         self.slots_held = 1;
         self.children = 0;
         if (dup2(self.devnull, 0) == -1) {
@@ -194,7 +202,7 @@
             }
         self.devnull = 0;
         }
-    bool jobserver_waited() {
+    bool jobserver_waited(void) {
         self.children --;
         self.slots_held ++;
         return jobserver_release_keep(0);
@@ -207,7 +215,7 @@
         return jobserver_release_keep(keep_slots);
         }
 // Low-level Interface
-    bool jobserver_init(jobserver_wait_callback func, void *data) {
+    bool jobserver_init(void) {
         if (self.write_fd) return true;
         // write_fd initialized to 0, but never 0 after successful init
 
@@ -279,15 +287,15 @@
         self.wait_callback_data = data;
         return true;
         }
-    int jobserver_ready_fd() {
+    int jobserver_ready_fd(void) {
         check_init_return(-1);
         return self.read_fd;
         }
-    int jobserver_child_fd() {
+    int jobserver_child_fd(void) {
         check_init_return(-1);
         return self.child_fd;
         }
-    static bool acquire() {
+    static bool acquire(void) {
         char c;
         switch (read(self.read_fd, &c, 1)) {
             case -1:
@@ -305,7 +313,7 @@
                 return true;
             }
         }
-    bool jobserver_try_acquire() {
+    bool jobserver_try_acquire(void) {
         // try to own a slot; returns true if acquired or false on error
         check_init_return(false);
         if (self.slots_held > 0) return true;

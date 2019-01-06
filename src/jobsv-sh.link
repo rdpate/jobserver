@@ -1,13 +1,9 @@
 common.o
 get_fds.o
 
-init.o
-    default_job_slots.o
 started.o
 release.o
 acquire.o
-sleep-start.o
-sleep-end.o
 
 # "external" libraries
 block_readwrite.o

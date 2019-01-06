@@ -8,8 +8,6 @@ unset JOBSERVER_FDS
 project="$(readlink -f .)"
 export project
 PATH="$project/cmd:$PATH"
-jobserver="$project/cmd/jobserver"
-export jobserver
 _funcs="$project/test/_funcs.sh"
 
 run_tests() {  # [PREFIX]
@@ -22,12 +20,12 @@ run_tests() {  # [PREFIX]
         printf %s\\n "--- ${1-}$x"
         case "$x" in
             *_js.sh)
-                "$jobserver" init --new \
-                /bin/sh -u -e -c '. "$1"; . "$0"' "./$x" "$_funcs"
+                jobsv --new \
+                /bin/sh -Cuec '. "$1"; . "$0"' "./$x" "$_funcs"
                 continue
                 ;;
             *.sh)
-                /bin/sh -u -e -c '. "$1"; . "$0"' "./$x" "$_funcs"
+                /bin/sh -Cuec '. "$1"; . "$0"' "./$x" "$_funcs"
                 continue
                 ;;
             esac

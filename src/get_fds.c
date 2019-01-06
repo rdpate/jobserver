@@ -27,7 +27,7 @@ static bool extract_fds(char *s, char **rest, int *dest) {
     dest[1] = (int) second;
     return true;
     }
-bool load_env_fds() {
+bool load_env_fds(void) {
     if (env_fds_ready) return true;
     char *env = getenv("JOBSERVER_FDS");
     if (!env) return false;
@@ -37,11 +37,11 @@ bool load_env_fds() {
     return env_fds_ready;
     }
 
-int get_read_fd() {
+int get_read_fd(void) {
     if (!load_env_fds()) fatal(69, "jobserver not running!");
     return env_fds[0];
     }
-int get_write_fd() {
+int get_write_fd(void) {
     if (!load_env_fds()) fatal(69, "jobserver not running!");
     return env_fds[1];
     }
