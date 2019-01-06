@@ -1,86 +1,90 @@
+
+/*
+* GNU Make 4.1 (and probably others) requires blocking FDs, as tested by:
+    > mkfifo pipe
+    > printf xx >>pipe &
+    > exec 3<pipe 4>>pipe
+    > export MAKE_FLAGS=' -j --jobserver-fds=3,4'
+    > # Makefile contains 4 parallel "sleep 1" phony targets
+    > time make
+    > # set &3 non-blocking
+    > time make
+    > # make: *** read jobs pipe: Resource temporarily unavailable.  Stop.
+
+* blocking IO complicates shared file descriptors under contention
+    * if read_fd is ready, as indicated by poll or select, then immediately after, it may still block indefinitely
+
+* Jobserver FDs are thus set non-blocking
+
+* jobserver-makeflags creates a new (blocking) pipe and translates between it and the jobserver non-blocking pipe
+    * the new pipe's FDs are saved in MAKEFLAGS
+*/
+
 #include "common.h"
 #include "get_fds.h"
 
-static bool dup_fds = false;
-static int handle_option(char const *name, char const *value, void *_data) {
-    if (!strcmp(name, "dup")) {
-        if (value) fatal(64, "unexpected value for option dup");
-        dup_fds = true;
+static void flag_subtract(char *value, char const *flag) {
+    while ((value = strstr(value, flag))) {
+        char const* next = strchr(value + 1, ' ');
+        if (!next) {
+            *value = '\0';
+            break;
+            }
+        memmove(value, next, strlen(next) + 1);
         }
-    else fatal(64, "unknown option %s", name);
-    return 0;
     }
-
-static char const *makeflags_subtract() {
-    char *makeflags = getenv("MAKEFLAGS");
-    if (!makeflags) return "";
-    char *end = makeflags + strlen(makeflags) + 1;
-    char *start = makeflags;
-    while ((start = strstr(start, " --jobserver-auth="))) {
-        char const* next = strchr(start + 1, ' ');
-        if (!next) {
-            *start = '\0';
-            break;
+static void set_makeflags(int read_fd, int write_fd) {
+    if (read_fd < 0     || write_fd < 0    ) exit(70);
+    if (read_fd > 99999 || write_fd > 99999) exit(70);
+    char const *add = " -j --jobserver-auth=%d,%d --jobserver-fds=%d,%d";
+    //                 1       10        20        30        40      48
+    // increasing length by at most 60: 48 + 12 (4x %d, +3 each)
+    // each %d is possible 5 chars output (given restriction to 99999)
+    int const extra_len = 60;
+    char *makeflags;
+    int buffer_size;
+    { // copy into new buffer
+        char const *orig_makeflags = getenv("MAKEFLAGS");
+        if (!orig_makeflags) orig_makeflags = "";
+        buffer_size = strlen(orig_makeflags) + extra_len + 1;
+        makeflags = malloc(buffer_size);
+        if (!makeflags) {
+            perror("malloc");
+            exit(70);
             }
-        memmove(start, next, strlen(next) + 1);
+        strcpy(makeflags, orig_makeflags);
         }
-    start = makeflags;
-    while ((start = strstr(start, " --jobserver-fds="))) {
-        char const* next = strchr(start + 1, ' ');
-        if (!next) {
-            *start = '\0';
-            break;
-            }
-        memmove(start, next, strlen(next) + 1);
-        }
-    start = makeflags + strlen(makeflags) + 1;
-    memset(start, '\0', end - start);
-    return makeflags;
+    flag_subtract(makeflags, " --jobserver-fds=");
+    flag_subtract(makeflags, " --jobserver-auth=");
+    flag_subtract(makeflags, " -j");
+    char *end = makeflags + strlen(makeflags);
+    sprintf(end, add, read_fd, write_fd, read_fd, write_fd);
+    setenv("MAKEFLAGS", makeflags, true);
+    free(makeflags);
     }
 int main(int argc, char **argv) {
-    int rc = main_parse_options(&argc, &argv, &handle_option, NULL);
+    int rc = main_no_options(&argc, &argv);
     if (rc) return rc;
-
-    int read_fd = get_read_fd();
-    int write_fd = get_write_fd();
-    if (dup_fds) {
-        if (!argc) fatal(64, "cannot dup(2) without CMD");
-        // dup(2) for MAKEFLAGS to prevent GNU Make from closing only copy
-        int const start_fd = 100;
-        read_fd = fcntl(read_fd, F_DUPFD, start_fd);
-        if (read_fd == -1) {
-            perror("fcntl");
-            fatal(69, "fcntl failed");
-            }
-        write_fd = fcntl(write_fd, F_DUPFD, start_fd);
-        if (write_fd == -1) {
-            perror("fcntl");
-            fatal(69, "fcntl failed");
-            }
+    if (!argc) fatal(64, "missing CMD argument");
+    int jobsv[2] = {get_read_fd(), get_write_fd()};
+    int make[2];
+    if (pipe(make) == -1) {
+        perror("pipe");
+        return 71;
         }
-    char const *makeflags;
-    { // adjust MAKEFLAGS
-        makeflags = makeflags_subtract();
-        if (read_fd > 99999 || write_fd > 99999) return 70;
-        char const *add = "MAKEFLAGS=%s -j --jobserver-auth=%d,%d --jobserver-fds=%d,%d";
-        //                 1       10        20        30        40        50        60
-        // increasing strlen(makeflags) by 70: 60 - 2 (%s) + 12 (4x %d, possible +3 each)
-        char *new_flags = malloc(strlen(makeflags) + 70 + 1);
-        if (!new_flags) {
-            perror("malloc");
-            fatal(70, "malloc failed");
-            }
-        sprintf(new_flags, add, makeflags, read_fd, write_fd, read_fd, write_fd);
-        makeflags = new_flags;
+    set_makeflags(make[0], make[1]);
+    pid_t pid = fork();
+    if (pid == -1) {
+        perror("fork");
+        return 71;
         }
-    if (!argc) {
-        puts(strchr(makeflags, '=') + 1);
-        return 0;
-        }
-    else {
-        putenv((char *) makeflags);
+    if (pid == 0) {
+        // child
         execvp(argv[0], argv);
         perror("exec");
-        return 65;
+        _Exit(65);
         }
+    // parent
+    (void) jobsv;
+    fatal(70, "TODO: figure out how to transfer slots between the queues");
     }
