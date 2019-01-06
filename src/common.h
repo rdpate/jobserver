@@ -31,9 +31,6 @@ int main_parse_options(int *pargc, char ***pargv, handle_option_func handle_opti
 int parse_no_options(int *pargc, char ***pargv);
 int main_no_options(int *pargc, char ***pargv);
 
-ssize_t write_all(int fd, void const *data, size_t size);
-// TODO: can write_all be removed?
-
 bool to_int(int *dest, char const *s);
 
 #endif

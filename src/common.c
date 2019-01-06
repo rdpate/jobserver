@@ -99,19 +99,6 @@ int main_no_options(int *pargc, char ***pargv) {
     }
 
 
-ssize_t write_all(int fd, void const *data, size_t size) {
-    ssize_t written = 0;
-    while (written < size) {
-        ssize_t n = write(fd, data, size);
-        if (n == -1) {
-            if (errno == EINTR) continue;
-            return n;
-            }
-        else written += n;
-        }
-    return written;
-    }
-
 bool to_int(int *dest, char const *s) {
     char const *end;
     errno = 0;

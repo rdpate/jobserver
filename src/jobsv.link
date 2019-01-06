@@ -2,6 +2,7 @@ common.o
 get_fds.o
 
 default_job_slots.o
+monitor.o
 
 # "external" libraries
 block_readwrite.o

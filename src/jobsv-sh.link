@@ -1,9 +1,7 @@
 common.o
 get_fds.o
 
-started.o
 release.o
-acquire.o
 
 # "external" libraries
 block_readwrite.o

@@ -4,37 +4,29 @@
 #
 # For each input line, run "CMD.. LINE" under a jobserver, which is created if required.
 #
-# Environment variable $LINE is the original line number.
+# Note: a partial final line (eg. at unexpected EOF) is not detected.
 #
 # Options:
-# -a  --all                 --blanks --comments --no-strip
-# -b  --blanks              don't ignore blank lines
-# -c  --comments            don't ignore lines matching /^ *#/
-#     --no-strip            don't strip leading/trailing spaces
+# -a  --verbatim              --blanks --comments --no-strip
+# -b  --blanks                don't ignore blank lines
+# -c  --comments              don't ignore lines matching /^ *#/
+#     --no-strip              don't strip leading/trailing spaces
 #
-#     --no-blanks           ignore blank lines (default)
-#     --no-comments         ignore lines matching /^ *#/ (default)
-#     --strip               strip leading and trailing spaces (default)
+#     --no-blanks             ignore blank lines (default)
+#     --no-comments           ignore lines matching /^ *#/ (default)
+#     --strip                 strip leading and trailing spaces (default)
 #
-# Environment:
-#   LINE                    line number, exported to CMD
+# Environment exported to CMD:
+#     JOBNO                   job number, increment for non-ignored lines
+#     LINENO                  input line number, increment for all lines
+#     ORIG_LINE               original line
 
-# TODO: better example
-# Example:
-#   # new jobserver limited to 4 slots for sake of example
-#   $ seq 1 9 | cmd/jobserver init --new --slots=4 doc/xlines \
-#       sh -c 'printf $1; sleep $(( (9 - $1) % 3 )); printf $1' x ; \
-#       echo
-#   123345667285991847
-
-# default to "jobserver" command in $PATH
-# or use included because this is an example program
-jobserver="$(which jobserver 2>/dev/null)" || {
-    jobserver="$(dirname "$(readlink -f "$0")")/../cmd/jobserver"
-    alias jobserver='"$jobserver"'
-    }
-
-jobserver started || exec jobserver init "$0" "$@"
+if jobsv_sh="$(which jobsv.sh 2>/dev/null)"; then
+    . "$jobsv_sh"
+    jobsv_or_exec "$0" "$@"
+else
+    jobsv_bg() { "$@" </dev/null; }
+    fi
 
 fatal() { rc="$1"; shift; printf %s\\n "${0##*/} error: $*" >&2 || true; exit "$rc"; }
 
@@ -96,19 +88,33 @@ while [ $# -gt 0 ]; do
 [ $# != 0 ] || fatal 64 'missing CMD argument'
 which -- "$1" >/dev/null 2>&1 || fatal 65 "command not found: $1"
 
-bg_job() {
-    jobserver release "$@" &
-    # "current" slot has passed to bg command, must acquire to continue
-    jobserver acquire
-    }
-LINE=1
-export LINE
-while read -r line; do
+if $comments; then
+    keep_if_comment() { true; }
+else
+    if $no_strip; then
+        keep_if_comment() {
+            set -- "$(printf %s "$1" | sed 's/^  *//')"
+            case "$1" in '#'*) return 1 ;; esac
+            }
+    else
+        keep_if_comment() {
+            case "$1" in '#'*) return 1 ;; esac
+            }
+        fi
+    fi
+
+JOBNO=1
+export JOBNO
+LINENO=0
+export LINENO
+export ORIG_LINE
+while IFS= read -r ORIG_LINE; do
+    LINENO=$((LINENO + 1))
+    line="$ORIG_LINE"
     $no_strip || line="$(printf %s "$line" | sed -r 's/^ +| +$//g')"
     $blanks || [ -n "$line" ] || continue
-    $comments || case "$line" in '#'*) continue ;; esac
+    keep_if_comment "$line" || continue
 
-    bg_job "$@" "$line"
-    LINE=$((LINE + 1))
+    jobsv_bg "$@" "$line"
+    JOBNO=$((JOBNO + 1))
     done
-wait

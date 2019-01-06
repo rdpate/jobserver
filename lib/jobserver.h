@@ -1,3 +1,6 @@
+#ifndef INCLUDE_GUARD_7ea9d526ce071d824a7ea44df391dd35
+#define INCLUDE_GUARD_7ea9d526ce071d824a7ea44df391dd35
+
 #include <stdbool.h>
 #include <sys/types.h>
 
@@ -92,3 +95,5 @@
         // - release held slots, if more than keep_slots
         // error: false
         // return: success
+
+#endif

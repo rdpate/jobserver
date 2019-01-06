@@ -76,7 +76,7 @@ int main_release(int argc, char **argv) {
             }
         else rc = main2(argv);
         }
-    if (write_all(write_fd, "x", 1) == -1) {
+    if (block_write(write_fd, "x", 1) == -1) {
         perror("write");
         if (rc == 0) rc = 71;
         }

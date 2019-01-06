@@ -1,0 +1,30 @@
+. %
+
+Source jobsv.sh to use Jobserver in a shell script:
+
+    if jobsv_sh="$(which jobsv.sh 2>/dev/null)"; then
+        . "$jobsv_sh"
+        jobsv_or_exec "$0" "$@"
+    else
+        jobsv_bg() { "$@"; }
+        fi
+
+Sourcing may set the exit trap.  If resetting this trap, ensure jobsv_exiting is executed.
+
+jobsv_or_exec "$0" "$@"
+    Ensure run under Jobserver, which might re-exec "$0" "$@".  (If not executable or originally run with a different interpreter or flags, then will not be the same!)
+
+    Will print a warning if jobsv not in PATH, check jobsv_missing to avoid:
+        $jobsv_missing || jobsv_or_exec "$0" "$@"
+
+jobsv_bg CMD..
+    Pass active slot to "CMD </dev/null &", then acquire another slot.
+
+jobsv_bg_stdin CMD..
+    As jobsv_bg, except stdin has already been redirected for CMD.
+
+jobsv_sleeping CMD..
+    Release active slot to run CMD, then reacquire (which might cheat).
+
+jobsv_exiting
+    Wait for children and ensure one slot is held when exiting (one slot was held when starting).  Only needed if resetting exit trap, from where it should be called.

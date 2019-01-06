@@ -1,7 +1,7 @@
 % (started|acquire)
 % release CMD.. &
 
-Manage a Jobserver with shell commands.
+Manage a Jobserver with shell commands.  See jobsv.sh.
 
 Subcommands:
   started
