@@ -170,7 +170,7 @@
         return jobserver_release_keep(keep_slots);
         }
 // Low-level Interface
-    static void noop(int _) {};
+    static void no_op(int _) {};
     bool jobserver_init(jobserver_wait_callback func, void *data) {
         if (self.write_fd) return true;
         // write_fd initialized to 0, but never 0 after successful init
@@ -213,7 +213,7 @@
             else {
                 // must have a non-ignored SIGALRM handler to interrupt system calls
                 struct sigaction act = {}, oldact;
-                act.sa_handler = &noop;
+                act.sa_handler = &no_op;
                 if (sigaction(SIGALRM, &act, &oldact) == -1) {
                     fatal_sysfunc("sigaction");
                     return false;

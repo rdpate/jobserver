@@ -23,6 +23,6 @@ for args in "${0%.do}.args" "$target.args"; do
         done <"$args"
     done
 cc -c -MD -MF"$dep" -o"$output" "$@" "$src"
-sed -r 's/^[^ ]+: //; s/ \\$//; s/^ +| +$//g; s/ +/\n/g' "$dep" \
-| xargs redo-ifchange <"$dep"
+sed -r 's/^[^:]+: *//; s/ \\$//; s/^ +| +$//g; s/ +/\n/g' "$dep" \
+| xargs redo-ifchange
 rm "$dep"
