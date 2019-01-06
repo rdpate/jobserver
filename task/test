@@ -4,7 +4,6 @@ task/build
 exec </dev/null
 
 unset JOBSERVER_FDS
-unset MAKEFLAGS
 
 project="$(readlink -f .)"
 export project

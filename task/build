@@ -1,15 +1,9 @@
 #!/bin/sh -Cue
 
-# auto-parallelize redo
+# auto-parallelize
 # note: uses jobserver from $PATH and not from repo
 if which jobserver >/dev/null 2>&1; then
-    jobserver started || {
-        set -- "$0" "$@"
-        if which jobserver-makeflags >/dev/null 2>&1; then
-            set -- jobserver-makeflags "$@"
-            fi
-        exec jobserver init "$@"
-        }
+    jobserver started || exec jobserver init "$0" "$@"
     fi
 
 proj="$(dirname "$0")/.."

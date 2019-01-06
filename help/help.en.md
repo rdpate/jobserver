@@ -1,7 +1,7 @@
 Jobserver
 =========
 
-Implement a jobserver compatible with [redo](https://redo.rtfd.io/) and GNU Make.
+Jobserver manages parallel background jobs.
 
 
 ## Getting Started
