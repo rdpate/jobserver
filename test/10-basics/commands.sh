@@ -18,9 +18,8 @@ assert_exitcode 143 jobsv sh -c 'kill $$'
 
 # init options
 assert_success  jobsv --new true
-assert_success  jobsv --slots=4 true
-assert_fails    jobsv --slots true
-assert_fails    jobsv --slots= true
+assert_success  jobsv --new=4 true
+assert_fails    jobsv --new= true
 assert_success  jobsv --fixed true
 assert_success  jobsv --fixed=4 true
 assert_fails    jobsv --fixed= true

@@ -17,7 +17,7 @@ run_tests() {  # [PREFIX]
             (cd "$x" && run_tests "${1-}$x/")
             continue
             fi
-        printf %s\\n "--- ${1-}$x"
+        printf %s\\n "### ${1-}$x"
         case "$x" in
             *_js.sh)
                 jobsv --new \
@@ -38,4 +38,4 @@ run_tests() {  # [PREFIX]
         done
     }
 cd test
-run_tests
+run_tests test/
