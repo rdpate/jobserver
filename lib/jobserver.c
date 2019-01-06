@@ -1,5 +1,6 @@
 // internal details
     #include "jobserver.h"
+
     #include <errno.h>
     #include <limits.h>
     #include <signal.h>
@@ -21,28 +22,23 @@
         int devnull;
 
         int child_fd;
-        timer_t nonblock_timer;
         jobserver_wait_callback wait_callback;
         void *wait_callback_data;
         } self;
-    static struct itimerspec const safe_delay = {{}, {0, 10 * 1000}};
-        // milliseconds afterwhich to EINTR read()
-    static struct itimerspec const no_delay = {};
-
     //#define log_msg(msg)            jobserver_error(0, __func__, 0, msg)
     //#define fatal_func(func)        jobserver_error(70, func, errno, NULL)
     #define fatal_sysfunc(func)     jobserver_error(71, func, errno, NULL)
-    #define fatal_usage(msg)        jobserver_error(70, __func__, 0, msg)
+    #define fatal_msg(msg)          jobserver_error(70, __func__, 0, msg)
     #define check_init_return(rc) do { \
         if (!self.write_fd) { \
-            fatal_usage("must jobserver_init first"); \
+            fatal_msg("must jobserver_init first"); \
             return rc; \
             } \
         } while (0)
 // High-level Interface
     bool jobserver_init_or_exec(char **self_args) {
         if (!self_args || !*self_args) {
-            fatal_usage("bad self_args");
+            fatal_msg("bad self_args");
             return false;
             }
         if (jobserver_init()) return true;
@@ -67,12 +63,22 @@
         if (jobserver_init()) return true;
         if (errno != 0) return false;
         int p[2];
-        if (pipe2(p, O_CLOEXEC) == -1) {
-            fatal_sysfunc("pipe2");
+        if (pipe(p) == -1) {
+            fatal_sysfunc("pipe");
             return false;
             }
-        if (unsetenv("JOBSERVER_FDS") == -1) {
-            fatal_sysfunc("unsetenv");
+        if (p[0] > 99999 || p[1] > 99999) {
+            fatal_msg("file descriptor > 99999");
+            return false;
+            }
+        if (fcntl(p[0], F_SETFL, O_NONBLOCK) == -1) {
+            fatal_sysfunc("fcntl");
+            return false;
+            }
+        char buffer[5+1+5+1];
+        sprintf(buffer, "%d,%d", p[0], p[1]);
+        if (setenv("JOBSERVER_FDS", buffer, true) == -1) {
+            fatal_sysfunc("setenv");
             return false;
             }
         self.read_fd = p[0];
@@ -103,16 +109,47 @@
         jobserver_acquire_wait(0, 0);
         return pid;
         }
-    pid_t jobserver_bg_spawn(char const *args, ...) {
+    pid_t jobserver_bg_spawn(char const *cmd, char const *args, ...) {
+        if (!args) {
+            char const *argv[2] = {cmd, 0};
+            return jobserver_bg(0, argv);
+            }
         int n = 0;
         va_list ap;
         va_start(ap, args);
         while (va_arg(ap, char const *)) n ++;
         va_end(ap);
-        char const *argv[n + 2];
+        char const *argv[n + 3];
+        argv[0] = cmd;
+        argv[1] = args;
         va_start(ap, args);
-        argv[0] = args;
-        char const **next = argv + 1;
+        char const **next = argv + 2;
+        for (char const *a; (a = va_arg(ap, char const *));) {
+            *next = a;
+            next ++;
+            }
+        *next = NULL;
+        va_end(ap);
+        return jobserver_bg(0, argv);
+        }
+    pid_t jobserver_bg_shell(char const *script, char const *args, ...) {
+        if (!args) {
+            char const *argv[5] = {"/bin/sh", "-uec", script, "[-c]", 0};
+            return jobserver_bg(0, argv);
+            }
+        int n = 0;
+        va_list ap;
+        va_start(ap, args);
+        while (va_arg(ap, char const *)) n ++;
+        va_end(ap);
+        char const *argv[n + 6];
+        argv[0] = "/bin/sh";
+        argv[1] = "-Cuec";
+        argv[2] = script;
+        argv[3] = "[-c]";
+        argv[4] = args;
+        va_start(ap, args);
+        char const **next = argv + 5;
         for (char const *a; (a = va_arg(ap, char const *));) {
             *next = a;
             next ++;
@@ -124,11 +161,11 @@
     bool jobserver_exiting() {
         check_init_return(false);
         if (self.slots_held < 0) {
-            fatal_usage("too many slots released");
+            fatal_msg("too many slots released");
             return false;
             }
         if (self.children < 0) {
-            fatal_usage("too many children reaped");
+            fatal_msg("too many children reaped");
             }
         while (self.children > 0) {
             if (wait(0) == -1) {
@@ -170,7 +207,6 @@
         return jobserver_release_keep(keep_slots);
         }
 // Low-level Interface
-    static void no_op(int _) {};
     bool jobserver_init(jobserver_wait_callback func, void *data) {
         if (self.write_fd) return true;
         // write_fd initialized to 0, but never 0 after successful init
@@ -205,28 +241,6 @@
                 }
             self.child_fd = fd;
             }
-        if (!self.nonblock_timer) {
-            if (timer_create(CLOCK_MONOTONIC, NULL, &self.nonblock_timer) == -1) {
-                fatal_sysfunc("timer_create");
-                return false;
-                }
-            else {
-                // must have a non-ignored SIGALRM handler to interrupt system calls
-                struct sigaction act = {}, oldact;
-                act.sa_handler = &no_op;
-                if (sigaction(SIGALRM, &act, &oldact) == -1) {
-                    fatal_sysfunc("sigaction");
-                    return false;
-                    }
-                if (oldact.sa_handler || oldact.sa_sigaction) {
-                    // if previously handled, assume it can handle our signals
-                    if (sigaction(SIGALRM, &oldact, NULL) == -1) {
-                        fatal_sysfunc("sigaction");
-                        return false;
-                        }
-                    }
-                }
-            }
 
         long read_fd, write_fd; {
             char const *env = getenv("JOBSERVER_FDS");
@@ -238,19 +252,19 @@
             read_fd = strtol(env, (char **) &rest, 10);
             if (*rest != ',') {
                 errno = EINVAL;
-                fatal_usage("invalid $JOBSERVER_FDS");
+                fatal_msg("invalid $JOBSERVER_FDS");
                 return false;
                 }
             write_fd = strtol(rest + 1, (char **) &rest, 10);
             if (*rest != '\0') {
                 errno = EINVAL;
-                fatal_usage("invalid $JOBSERVER_FDS");
+                fatal_msg("invalid $JOBSERVER_FDS");
                 return false;
                 }
             if (read_fd  < 0 || INT_MAX < read_fd
             ||  write_fd < 0 || INT_MAX < write_fd) {
                 errno = ERANGE;
-                fatal_usage("invalid $JOBSERVER_FDS");
+                fatal_msg("invalid $JOBSERVER_FDS");
                 return false;
                 }
             }
@@ -275,37 +289,27 @@
         }
     static bool acquire() {
         char c;
-        ssize_t n;
-        while ((n = read(self.read_fd, &c, 1)) == -1) {
-            if (errno != EINTR) fatal_sysfunc("read");
-            return false;
+        switch (read(self.read_fd, &c, 1)) {
+            case -1:
+                if (errno == EINTR) return false;
+                if (errno == EAGAIN) return false;
+                if (errno == EWOULDBLOCK) return false;
+                fatal_sysfunc("read");
+                return false;
+            case 0:
+                fatal_msg("unexpected EOF");
+                return false;
+            case 1:
+            default:
+                self.slots_held ++;
+                return true;
             }
-        if (n == 0) {
-            fatal_usage("unexpected EOF");
-            return false;
-            }
-        self.slots_held ++;
-        return true;
-        }
-    static bool try_(bool (*func)()) {
-        // should be used only after jobserver_ready_fd is ready for reading, but that doesn't mean reading won't block
-        // set an interval timer to interrupt read(2)
-        if (timer_settime(self.nonblock_timer, 0, &safe_delay, NULL) == -1) {
-            fatal_sysfunc("timer_settime");
-            return false;
-            }
-        bool success = func();
-        if (timer_settime(self.nonblock_timer, 0, &no_delay, NULL) == -1) {
-            fatal_sysfunc("timer_settime");
-            return false;
-            }
-        return success;
         }
     bool jobserver_try_acquire() {
         // try to own a slot; returns true if acquired or false on error
         check_init_return(false);
         if (self.slots_held > 0) return true;
-        return try_(acquire);
+        return acquire();
         }
     bool jobserver_acquire_wait(jobserver_wait_callback func, void *data) {
         check_init_return(false);
@@ -338,12 +342,12 @@
                 return true;
                 }
             if (x[0].revents) {
-                if (try_(acquire)) return true;
+                if (acquire()) return true;
                 }
             }
         }
     bool jobserver_release_keep(int keep_slots) {
-        if (keep_slots < 0) fatal_usage("keep_slots < 0");
+        if (keep_slots < 0) fatal_msg("keep_slots < 0");
         check_init_return(false);
         while (self.slots_held > keep_slots) {
             ssize_t n;

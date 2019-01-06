@@ -15,7 +15,7 @@ int main(int argc, char **argv) {
     else jobserver_init_or_sync();
 
     for (char const **x = commands; *x; x ++) {
-        jobserver_bg_spawn("/bin/sh", "-c", *x, 0);
+        jobserver_bg_shell(*x, 0);
         }
 
     jobserver_exiting();

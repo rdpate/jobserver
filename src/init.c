@@ -49,10 +49,8 @@ static int slot_adjustment() {
     }
 static int read_fd, write_fd;
 static void add_slot() {
-    ssize_t x = write_all(write_fd, "x", 1);
+    ssize_t x = block_write(write_fd, "x", 1);
     if (x == -1) {
-        if (errno == EAGAIN || errno == EWOULDBLOCK)
-            fatal(69, "jobserver descriptor changed to non-blocking mode!");
         perror("write");
         nonfatal("lost slot due to write error");
         return;
@@ -65,11 +63,11 @@ static void add_slot() {
             }
         return;
         }
-    fatal(70, "unreachable");
+    UNREACHABLE
     }
 static void remove_slot() {
     char x;
-    int rc = read(read_fd, &x, 1);
+    int rc = block_read(read_fd, &x, 1);
     if (rc == 1) {
         --added;
         return;
@@ -107,11 +105,11 @@ static int do_exec(char **argv) {
     perror("exec");
     return 65;
     }
-static void noop(int _) {}
+static void no_op(int _) {}
 static int do_float(pid_t child_pid) {
     { // setup SIGALRM handler
         struct sigaction act = {};
-        act.sa_handler = noop;
+        act.sa_handler = no_op;
         if (sigaction(SIGALRM, &act, NULL) == -1) {
             perror("sigaction");
             fatal(71, "sigaction failed");
@@ -201,6 +199,10 @@ int main_init(int argc, char **argv) {
                     }
                 close(fds[1]);
                 }
+            }
+        if (fcntl(read_fd, F_SETFL, O_NONBLOCK) == -1) {
+            perror("fcntl");
+            return 71;
             }
         }
     { // add initial tokens

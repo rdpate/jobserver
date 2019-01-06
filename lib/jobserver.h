@@ -16,9 +16,9 @@
 // High-level Interface
     bool jobserver_init_or_exec(char **self_args);
         // - init or exec "jobserver init --" plus self_args
-        // return: whether successful
+        // return: whether successful (maybe not at all)
     bool jobserver_init_or_sync();
-        // - init or use synchronous mode (wait for children immediately)
+        // - init or create synchronous jobserver (1 slot)
         // error: false
         // return: whether successful
     pid_t jobserver_bg(int (*func)(void *data), void *data);
@@ -27,13 +27,16 @@
         //  - child runs _Exit(func(data))
         //  - not background as in shell job control
         // - stdin redirected from /dev/null
-        // - process
         // - ensures parent holds a slot when exits, which might involve waiting for a child
         // error: -1
-        // return: child PID or 0
-    pid_t jobserver_bg_spawn(char const *args, ...);
-        // - collect args into argv array
+        // return: child PID
+    pid_t jobserver_bg_spawn(char const *cmd, char const *args, ...);
+        // - collect cmd and args into argv array
+        // - do not repeat cmd in args
         // delegate: jobserver_bg(0, argv)
+    pid_t jobserver_bg_shell(char const *script, char const *args, ...);
+        // - collect script and args into argv array
+        // delegate: jobserver_bg_spawn("/bin/sh", "-uec", script, "[-c]", args);
     bool jobserver_exiting();
         // - wait for children
         // - release/aqcquire to hold exactly 1 slot

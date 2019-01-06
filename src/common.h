@@ -17,6 +17,9 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include "block_readwrite.h"
+#include "unreachable.h"
+
 
 extern char const *prog_name;
 void fatal(int rc, char const *fmt, ...);
@@ -29,6 +32,7 @@ int parse_no_options(int *pargc, char ***pargv);
 int main_no_options(int *pargc, char ***pargv);
 
 ssize_t write_all(int fd, void const *data, size_t size);
+// TODO: can write_all be removed?
 
 bool to_int(int *dest, char const *s);
 
