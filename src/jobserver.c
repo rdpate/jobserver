@@ -20,6 +20,5 @@ int main(int argc, char **argv) {
     SUB(acquire)
     SUB2(sleep-start,sleep_start)
     SUB2(sleep-end,sleep_end)
-    SUB2(sync-exec,sync_exec)
     fatal(64, "unknown subcommand %s", argv[0]);
     }

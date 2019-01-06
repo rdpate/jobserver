@@ -8,7 +8,6 @@ release.o
 acquire.o
 sleep-start.o
 sleep-end.o
-sync-exec.o
 
 # "external" libraries
 block_readwrite.o

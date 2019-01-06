@@ -1,4 +1,4 @@
-% (init|release|acquire|...) ...
+% init CMD..
 
 Manage a Jobserver pool of active job slots.
 
@@ -23,5 +23,3 @@ Uncommon subcommands:
     Release active slot; must use sleep-end when ready to start work.
   sleep-end
     Re-acquire active slot after sleep-start.
-  sync-exec CMD..
-    Run CMD without Jobserver, if active.

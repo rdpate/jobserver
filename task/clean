@@ -6,3 +6,5 @@ while read -r x; do
     rm -r -f "$x"
     done
 rm -r -f src/.*.dep
+rm -r .redo
+mkdir .redo
