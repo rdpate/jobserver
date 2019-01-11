@@ -1,11 +1,10 @@
 % CMD..
 
-Manage a pool of active job slots, which is available to executed CMD and children.
+Manage a pool of active job slots, which is available to executed CMD and children.  By default, an existing pool (inherited from a parent process) is re-used.
+
+Note that the number of slots (option value N) can be specified, but it should seldom be needed!
 
 Options:
     --new[=N]               create new pool with N initial slots
     --fixed[=N]             --new[=N] without monitoring
-
-(note: N can be specified, but it should seldom be needed!)
-
     --no-makeflags          don't modify/create $MAKEFLAGS

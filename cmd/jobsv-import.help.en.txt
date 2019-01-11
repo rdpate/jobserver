@@ -1,0 +1,6 @@
+% FIFO CMD..
+
+Import pool previously exported as FIFO, then run CMD.
+
+Options:
+    --no-makeflags          don't modify/create $MAKEFLAGS

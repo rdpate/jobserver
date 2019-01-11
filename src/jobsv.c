@@ -13,6 +13,7 @@ static struct {
         bool new_pool;
         bool fixed_pool;
         bool no_makeflags;
+        bool attach;
     } opts = {};
 int const start_fd = 100;
 static void save_slots_value(char const *name, char const *value) {
@@ -38,6 +39,9 @@ static int handle_option(char const *name, char const *value, void *data) {
         if (value) fatal(64, "unexpected value for option %s", name);
         opts.no_makeflags = true;
         }
+    else if (strcmp(name, "-attach") == 0) {
+        opts.attach = true;
+        }
     else fatal(64, "unknown option %s", name);
     return 0;
     }
@@ -48,13 +52,25 @@ static void do_exec(char **argv) {
     }
 static void no_op(int _) {}
 static int do_monitor(pid_t child_pid, int read_fd, int write_fd) {
+    // Check every 60 seconds.  If a change was required, then check again in 30 seconds.
+    int const no_change_delay = 60;
+    int const change_delay = 30;
+    int delay = no_change_delay;
+
+    if (!child_pid) {
+        // --attach
+        while (true) {
+            sleep(delay);
+            if (slot_change(read_fd, write_fd)) delay = change_delay;
+            else delay = no_change_delay;
+            }
+        }
+
     { // setup SIGALRM handler
         struct sigaction act = {};
         act.sa_handler = no_op;
         SYS( sigaction,(SIGALRM, &act, NULL) );
         }
-    // Check every 60 seconds.  If a change was required, then check again in 30 seconds.
-    int delay = 60;
     while (true) {
         alarm(delay);
         int status;
@@ -66,8 +82,8 @@ static int do_monitor(pid_t child_pid, int read_fd, int write_fd) {
             if (WIFEXITED(status)) return WEXITSTATUS(status);
             else if (WIFSIGNALED(status)) return WTERMSIG(status) + 128;
             }
-        if (slot_change(read_fd, write_fd)) delay = 30;
-        else delay = 60;
+        if (slot_change(read_fd, write_fd)) delay = change_delay;
+        else delay = no_change_delay;
         }
     }
 
@@ -121,8 +137,17 @@ static void do_makeflags(int read_fd, int write_fd) {
 int main(int argc, char **argv) {
     int rc = main_parse_options(&argc, &argv, &handle_option, NULL);
     if (rc) return rc;
-    if (argc == 0) fatal(64, "missing CMD argument");
 
+    if (opts.attach) {
+        if (!load_env_fds()) fatal(70, "unexpected --attach problem");
+        if (opts.slots == 0) opts.slots = default_job_slots();
+        int leak_warning = opts.slots;
+        if (leak_warning < INT_MAX / 2) leak_warning *= 2;
+        init_monitor(opts.slots, leak_warning);
+        return do_monitor(0, get_read_fd(), get_write_fd());
+        }
+
+    if (argc == 0) fatal(64, "missing CMD argument");
     if (load_env_fds()) {
         if (!opts.new_pool) {
             do_makeflags(get_read_fd(), get_write_fd());

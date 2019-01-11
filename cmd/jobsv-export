@@ -1,0 +1,27 @@
+#!/bin/sh -Cue
+fatal() { rc="$1"; shift; printf %s\\n "${0##*/} error: $*" >&2 || true; exit "$rc"; }
+handle_option() { fatal 64 "unknown option $1"; }
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --) shift; break ;;
+        --*=*) x="${1#--}"; handle_option "${x%%=*}" "${x#*=}"; shift ;;
+        --*) handle_option "${1#--}"; shift ;;
+        -?) handle_option "${1#-}"; shift ;;
+        -?*)
+            v="${1#??}"
+            x="${1%"$v"}"
+            handle_option "${x#-}" "$v"
+            shift
+            ;;
+        *) break ;;
+        esac
+    done
+case "$#" in
+    0) fatal 64 'missing FIFO argument' ;;
+    1) ;;
+    *) fatal 64 'unexpected arguments' ;;
+    esac
+[ -p "$1" ] || mkfifo -- "$1"
+exec 8<"$1"
+exec 9>"$1"
+JOBSERVER_FDS=8,9 exec "$(dirname "$0")/jobsv" ---attach="$1"

@@ -1,0 +1,3 @@
+% FIFO
+
+Create a pool of active job slots on named pipe FIFO.  No attempt is made to determine if FIFO is already being monitored; use a supervisor if required.
