@@ -1,14 +1,24 @@
 Jobserver
-=========
+====
 
-Jobserver manages parallel background jobs.
+Jobserver parallelizes jobs to better utilize processing power, and does so better than common alternatives:
+
+* reacts to system load
+* can be long-lived, spanning any size process tree
+    * including multiple login sessions
+* re-creates leaked job slots
+
+Compatible with [redo](https://redo.rtfd.io/) and GNU Make.
+
+<!-- TODO: revert from non-blocking back to blocking IO -->
 
 
-## Getting Started
+Getting Started
+----
 
 Run task/build, then task/test.
 
-Redo is used, either install redo or read task/build and default.do to execute those steps manually.  To install, symlink cmd/jobserver into $PATH (or cp cmd/\*jobserver\* dir\_in\_PATH/).
+Redo is used, either install redo or read task/build and default.do to execute those steps manually.  To install, symlink or copy executables from cmd into \$PATH.
 
 Run your entire shell session under Jobserver or write a shell script to run under Jobserver, starting if needed:
 
@@ -24,10 +34,14 @@ Run your entire shell session under Jobserver or write a shell script to run und
     # ...
     jobsv_bg echo "some command run in bg"
 
-An example of the above is doc/xlines, which is roughly equivalent to "xargs -d\\\\n -n1 -PN", where N is the number of slots (see Defaults).
+An example of the above is doc/xlines, which is roughly equivalent to "xargs -d\\\\n -n1 -PN", except:
+
+* jobsv automatically determines and monitors the number of slots
+* job slots are shared with children
 
 
-## Defaults
+Defaults
+----
 
 By default, Jobserver attempts to be smart:
 
@@ -40,3 +54,16 @@ By default, Jobserver attempts to be smart:
     * only removes slots added by the monitor
 
 Instead of the above, if you want behavior similar to "-jN" in many programs, use the option --fixed=N.
+
+
+Ideas, Goals, and Notes
+----
+
+* job slots are taken to mean "full use of one processor", except each jobserver believes it can use each processor fully
+    * this means if any one jobserver is running, it will (attempt to) use each processor fully, and more than one running will simply share under the OS
+* "at most N workers" is treated as a simpler approximation of "parallelize to fully utilize processors"
+* processes which spawn multiple concurrent workers are rare
+* most commands should ignore Jobserver
+    * because they don't spawn multiple concurrent workers and only "use" one processor
+    * yet, children should have the same Jobserver instance available for use
+* some programs (eg. tmux) close all file descriptors, so any complete solution must allow at least one more mechanism
