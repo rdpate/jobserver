@@ -7,18 +7,14 @@
 # Note: a partial final line (eg. at unexpected EOF) is not detected.
 #
 # Options:
-# -a  --verbatim              --blanks --comments --no-strip
-# -b  --blanks                don't ignore blank lines
-# -c  --comments              don't ignore lines matching /^ *#/
-#     --no-strip              don't strip leading/trailing spaces
-#
-#     --no-blanks             ignore blank lines (default)
-#     --no-comments           ignore lines matching /^ *#/ (default)
-#     --strip                 strip leading and trailing spaces (default)
+# -a  --all                   keep verbatim input lines (-b -c -s)
+# -b  --blanks                keep blank lines
+# -c  --comments              keep lines matching /^ *#/
+# -s  --spaces                keep leading/trailing spaces
 #
 # Environment exported to CMD:
-#     JOBNO                   job number, increment for non-ignored lines
-#     LINENO                  input line number, increment for all lines
+#     JOBNO                   job number, increment for each CMD
+#     LINENO                  input line number, including skipped
 #     ORIG_LINE               original line
 
 if jobsv_sh="$(which jobsv.sh 2>/dev/null)"; then
@@ -30,41 +26,28 @@ else
 
 fatal() { rc="$1"; shift; printf %s\\n "${0##*/} error: $*" >&2 || true; exit "$rc"; }
 
-blanks=false
-comments=false
-no_strip=false
+keep_blanks=false
+keep_comments=false
+keep_spaces=false
 handle_option() {
     case "$1" in
         a|all)
             [ $# = 1 ] || fatal 64 "unexpected value for option $1"
-            blanks=true
-            comments=true
-            no_strip=true
+            keep_blanks=true
+            keep_comments=true
+            keep_spaces=true
             ;;
         b|blanks)
             [ $# = 1 ] || fatal 64 "unexpected value for option $1"
-            blanks=true
+            keep_blanks=true
             ;;
         c|comments)
             [ $# = 1 ] || fatal 64 "unexpected value for option $1"
-            comments=true
+            keep_comments=true
             ;;
-        no-strip)
+        s|spaces)
             [ $# = 1 ] || fatal 64 "unexpected value for option $1"
-            no_strip=true
-            ;;
-
-        no-blanks)
-            [ $# = 1 ] || fatal 64 "unexpected value for option $1"
-            blanks=false
-            ;;
-        no-comments)
-            [ $# = 1 ] || fatal 64 "unexpected value for option $1"
-            comments=false
-            ;;
-        strip)
-            [ $# = 1 ] || fatal 64 "unexpected value for option $1"
-            no_strip=false
+            keep_spaces=true
             ;;
         *) fatal 64 "unknown option $1" ;;
         esac
@@ -86,19 +69,33 @@ while [ $# -gt 0 ]; do
     done
 
 [ $# != 0 ] || fatal 64 'missing CMD argument'
-which -- "$1" >/dev/null 2>&1 || fatal 65 "command not found: $1"
+cmd="$(which -- "$1" 2>&1)" || fatal 65 "command not found: $1"
+shift
 
-if $comments; then
-    keep_if_comment() { true; }
+if $keep_comments; then
+    skip_if_comment() { false; }
 else
-    if $no_strip; then
-        keep_if_comment() {
+    if $keep_spaces; then
+        skip_if_comment() {
             set -- "$(printf %s "$1" | sed 's/^  *//')"
-            case "$1" in '#'*) return 1 ;; esac
+            case "$1" in '#'*) ;; *) return 1 ;; esac
             }
     else
-        keep_if_comment() {
-            case "$1" in '#'*) return 1 ;; esac
+        skip_if_comment() {
+            case "$1" in '#'*) ;; *) return 1 ;; esac
+            }
+        fi
+    fi
+if $keep_blanks; then
+    skip_if_blank() { false; }
+else
+    if $keep_spaces; then
+        skip_if_blank() {
+            [ -z "$(printf %s "$1" | sed 's/^  *$//')" ]
+            }
+    else
+        skip_if_blank() {
+            [ -z "$1" ]
             }
         fi
     fi
@@ -111,10 +108,10 @@ export ORIG_LINE
 while IFS= read -r ORIG_LINE; do
     LINENO=$((LINENO + 1))
     line="$ORIG_LINE"
-    $no_strip || line="$(printf %s "$line" | sed -r 's/^ +| +$//g')"
-    $blanks || [ -n "$line" ] || continue
-    keep_if_comment "$line" || continue
+    $keep_spaces || line="$(printf %s "$line" | sed -r 's/^ +| +$//g')"
+    if skip_if_blank "$line"; then continue; fi
+    if skip_if_comment "$line"; then continue; fi
 
-    jobsv_bg "$@" "$line"
+    jobsv_bg "$cmd" "$@" "$line"
     JOBNO=$((JOBNO + 1))
     done
