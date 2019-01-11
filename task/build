@@ -1,9 +1,8 @@
 #!/bin/sh -Cue
 
-# auto-parallelize
-# note: uses jobserver from $PATH and not from repo
-if which jobserver >/dev/null 2>&1; then
-    jobserver started || exec jobserver init "$0" "$@"
+# auto-parallelize; note: uses from $PATH and not from repo
+if which jobsv >/dev/null 2>&1; then
+    jobsv started || exec jobsv init "$0" "$@"
     fi
 
 proj="$(dirname "$0")/.."
@@ -13,7 +12,7 @@ if [ $# != 0 ]; then
     exec redo-ifchange "$@"
     fi
 
-findr() { # find non-hidden names
+findr() { # find regular (non-hidden) names
     src="$1"
     shift
     find "$src" ! -name . -name '.*' -prune -o '(' "$@" ')' -print

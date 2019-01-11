@@ -79,7 +79,8 @@
     int jobserver_child_fd(void);
         // - signalfd which only receives SIGCHLD
     bool jobserver_try_acquire(void);
-        // acquire a slot without blocking
+        // - attempt to acquire a slot
+        // - non-blocking
         // error: false
         // return: whether acquired
         // note: may generate SIGALRM

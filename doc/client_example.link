@@ -1,3 +1,2 @@
-../lib/jobserver.o
-../lib/jobserver_fatal.o
+../lib/jobserver.a
 -lrt

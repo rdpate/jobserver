@@ -6,4 +6,6 @@ Options:
     --new[=N]               create new pool with N initial slots
     --fixed[=N]             --new[=N] without monitoring
 
-Note: N can be specified, but it should seldom be needed!
+(note: N can be specified, but it should seldom be needed!)
+
+    --no-makeflags          don't modify/create $MAKEFLAGS

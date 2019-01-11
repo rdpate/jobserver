@@ -10,8 +10,6 @@ Jobserver parallelizes jobs to better utilize processing power, and does so bett
 
 Compatible with [redo](https://redo.rtfd.io/) and GNU Make.
 
-<!-- TODO: revert from non-blocking back to blocking IO -->
-
 
 Getting Started
 ----

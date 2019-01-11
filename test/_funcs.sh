@@ -4,7 +4,7 @@ failed() {  # MSG [PREMSG..]
     for x; do printf %s\\n "$x"; done
     printf %s\\n "failed $msg"
     exit 1
-}
+    }
 squote() {
     local x
     while true; do

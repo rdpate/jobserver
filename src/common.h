@@ -21,12 +21,13 @@
 #include "unreachable.h"
 
 
-#define SYS_ERR_FATAL(func,params,err_value,exitcode) do {      \
-    if ((func params) == (err_value)) {                         \
-        fatal(exitcode, #func ": %s", strerror(errno));         \
-        }                                                       \
+#define SYS_ERR_FATAL(pre,func,params,err_value,exitcode) do {      \
+    if ((pre func params) == (err_value)) {                         \
+        fatal(exitcode, #func ": %s", strerror(errno));             \
+        }                                                           \
     } while (0)
-#define SYS(func,params) SYS_ERR_FATAL(func,params,-1,71)
+#define SYS(func,params) SYS_ERR_FATAL(,func,params,-1,71)
+#define SYSV(var,func,params) SYS_ERR_FATAL(var =,func,params,-1,71)
 
 extern char const *prog_name;
 void fatal(int rc, char const *fmt, ...);

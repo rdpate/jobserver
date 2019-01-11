@@ -1,0 +1,15 @@
+* ideas
+    * "jobserver export" saves FDs for later "jobserver import CMD.."
+* notes
+    * GNU Make 4.1 (and probably others) requires blocking FDs, as tested by:
+        > mkfifo pipe
+        > printf xx >>pipe &
+        > exec 3<pipe 4>>pipe
+        > export MAKE_FLAGS=' -j --jobserver-fds=3,4'
+        > # Makefile contains 4 parallel "sleep 1" phony targets
+        > time make
+        > # set &3 non-blocking
+        > time make
+        > # make: *** read jobs pipe: Resource temporarily unavailable.  Stop.
+    * blocking IO complicates shared file descriptors under contention
+        * if read_fd is ready, as indicated by poll or select, then immediately after, it may still block indefinitely

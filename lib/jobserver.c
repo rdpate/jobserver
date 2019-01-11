@@ -1,5 +1,6 @@
 // internal details
     #include "jobserver.h"
+    #include "jobserver_nonblock_read.h"
 
     #include <errno.h>
     #include <limits.h>
@@ -217,7 +218,9 @@
 // Low-level Interface
     bool jobserver_init(void) {
         if (self.write_fd) return true;
-        // write_fd initialized to 0, but never 0 after successful init
+        // write_fd starts as 0, but never 0 after success here
+
+        if (!jobserver_nonblock_read_init()) return false;
 
         // first, initialization which can be "shared" with init_or_sync
         // TODO: instead, set a flag to no-op (almost) everthing?
@@ -270,7 +273,8 @@
                 return false;
                 }
             if (read_fd  < 0 || INT_MAX < read_fd
-            ||  write_fd < 0 || INT_MAX < write_fd) {
+            ||  write_fd < 0 || INT_MAX < write_fd
+            ||  write_fd == 0) {
                 errno = ERANGE;
                 fatal_msg("invalid $JOBSERVER_FDS");
                 return false;
@@ -279,6 +283,7 @@
         self.read_fd = (int) read_fd;
         // write_fd is sentinel and assigned last
         self.slots_held = 1;  // start with one
+
         self.write_fd = (int) write_fd;
         return true;
         }
@@ -297,11 +302,11 @@
         }
     static bool acquire(void) {
         char c;
-        switch (read(self.read_fd, &c, 1)) {
+        switch (jobserver_nonblock_read(self.read_fd, &c, 1)) {
             case -1:
-                if (errno == EINTR) return false;
-                if (errno == EAGAIN) return false;
-                if (errno == EWOULDBLOCK) return false;
+                if (errno == EINTR
+                ||  errno == EAGAIN
+                ||  errno == EWOULDBLOCK) return false;
                 fatal_sysfunc("read");
                 return false;
             case 0:
