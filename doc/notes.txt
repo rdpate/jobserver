@@ -1,6 +1,13 @@
-* ideas
-    * "jobserver export" saves FDs for later "jobserver import CMD.."
+* future ideas
 * notes
+    * job slots are taken to mean "full use of one processor", except each jobserver believes it can use each processor fully
+        * this means if any one jobserver is running, it will (attempt to) use each processor fully, and more than one running will simply share under the OS
+    * "at most N workers" is treated as a simpler approximation of "parallelize to fully utilize processors"
+    * processes which spawn multiple concurrent workers are rare
+    * most commands should ignore Jobserver
+        * because they don't spawn multiple concurrent workers and only "use" one processor
+        * yet, children should have the same Jobserver instance available for use
+    * some programs (eg. tmux) close all file descriptors, so any complete solution must allow at least one more mechanism
     * GNU Make 4.1 (and probably others) requires blocking FDs, as tested by:
         > mkfifo pipe
         > printf xx >>pipe &

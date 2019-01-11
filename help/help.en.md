@@ -52,16 +52,3 @@ By default, Jobserver attempts to be smart:
     * only removes slots added by the monitor
 
 Instead of the above, if you want behavior similar to "-jN" in many programs, use the option --fixed=N.
-
-
-Ideas, Goals, and Notes
-----
-
-* job slots are taken to mean "full use of one processor", except each jobserver believes it can use each processor fully
-    * this means if any one jobserver is running, it will (attempt to) use each processor fully, and more than one running will simply share under the OS
-* "at most N workers" is treated as a simpler approximation of "parallelize to fully utilize processors"
-* processes which spawn multiple concurrent workers are rare
-* most commands should ignore Jobserver
-    * because they don't spawn multiple concurrent workers and only "use" one processor
-    * yet, children should have the same Jobserver instance available for use
-* some programs (eg. tmux) close all file descriptors, so any complete solution must allow at least one more mechanism
