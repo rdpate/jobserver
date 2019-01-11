@@ -10,25 +10,26 @@
     * if completed, break and return
 
     */
-#include <sys/types.h>
-#include <poll.h>
 
-inline int poll_fd(int fd, int events, int timeout) {
+#include <sys/types.h>
+
+int poll_fd(int fd, int events, int timeout);
     // - poll and return events
-    struct pollfd fds = {fd, events};
-    if (poll(&fds, 1, timeout) == -1) return -1;
-    return fds.revents;
-    }
-inline int block_poll_fd(int fd, int events) {
-    return poll_fd(fd, events, -1);
-    }
+int block_poll_fd(int fd, int events);
+    // return: poll_fd(fd, events, -1)
 
 ssize_t block_read(int fd, void *buffer, size_t length);
-    // one successful read of up to length bytes
+    // - one successful read of up to length bytes
+    // error: -1
+    // return: number of bytes read
 
 ssize_t block_write(int fd, void const *data, size_t length);
-    // write length bytes or until write returns an error
+    // - write all length bytes
+    // error: either -1 or less than length
+    // return: number of bytes written
 ssize_t block_write_some(int fd, void const *data, size_t length);
-    // one successful write of up to length bytes
+    // - one successful write of up to length bytes
+    // error: -1
+    // return: number of bytes written
 
 #endif

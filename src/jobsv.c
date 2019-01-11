@@ -23,10 +23,7 @@ static int do_monitor(pid_t child_pid, int read_fd, int write_fd) {
     { // setup SIGALRM handler
         struct sigaction act = {};
         act.sa_handler = no_op;
-        if (sigaction(SIGALRM, &act, NULL) == -1) {
-            perror("sigaction");
-            fatal(71, "sigaction failed");
-            }
+        SYS( sigaction,(SIGALRM, &act, NULL) );
         }
     // Check every 60 seconds.  If a change was required, then check again in 30 seconds.
     int delay = 60;
@@ -35,10 +32,7 @@ static int do_monitor(pid_t child_pid, int read_fd, int write_fd) {
         int status;
         pid_t rc = waitpid(child_pid, &status, 0);
         if (rc == -1) {
-            if (errno != EINTR) {
-                perror("waitpid");
-                fatal(71, "waitpid failed");
-                }
+            if (errno != EINTR) fatal(71, "waitpid: %s", strerror(errno));
             }
         else if (rc == child_pid) {
             if (WIFEXITED(status)) return WEXITSTATUS(status);
@@ -86,10 +80,7 @@ int main(int argc, char **argv) {
     int read_fd, write_fd;
     { // setup pipe
         int fds[2] = {-1, -1};
-        if (pipe(fds)) {
-            perror("pipe");
-            fatal(71, "pipe failed");
-            }
+        SYS( pipe,(fds) );
         read_fd = fds[0];
         write_fd = fds[1];
         int const start_fd = 100;
@@ -117,10 +108,11 @@ int main(int argc, char **argv) {
     { // add initial tokens
         int slots = opts.slots;
         slots --; // child will start with one
+        char const *x16 = "xxxxxxxxxxxxxxxx";
         while (slots) {
             int write_len = (slots < 16 ? slots : 16);
-            int n = block_write(write_fd, "xxxxxxxxxxxxxxxx", write_len);
-            if (n == -1) fatal(70, "write: %s", strerror(errno));
+            int n;
+            SYS( n = block_write,(write_fd, x16, write_len) );
             slots -= n;
             }
         }
@@ -134,8 +126,8 @@ int main(int argc, char **argv) {
             }
         }
     if (!opts.monitor) do_exec(argv);
-    pid_t pid = fork();
-    if (pid == -1) fatal(71, "fork: %s", strerror(errno));
+    pid_t pid;
+    SYS( pid = fork,() );
     if (pid == 0) do_exec(argv);
     int leak_warning = opts.slots;
     if (leak_warning < INT_MAX / 2) leak_warning *= 2;

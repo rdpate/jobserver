@@ -1,7 +1,9 @@
 % CMD..
 
-Manage a Jobserver pool of active job slots.
+Manage a pool of active job slots, which is available to executed CMD and children.
 
 Options:
     --new[=N]               create new pool with N initial slots
-    --fixed[=N]             --new[=N] and don't monitor pool
+    --fixed[=N]             --new[=N] without monitoring
+
+Note: N can be specified, but it should seldom be needed!

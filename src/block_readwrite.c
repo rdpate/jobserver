@@ -1,11 +1,21 @@
 // headers
     #include "block_readwrite.h"
     #include "unreachable.h"
+
     #include <errno.h>
     #include <stdbool.h>
 
     #include <poll.h>
     #include <unistd.h>
+int poll_fd(int fd, int events, int timeout) {
+    // - poll and return events
+    struct pollfd fds = {fd, events};
+    if (poll(&fds, 1, timeout) == -1) return -1;
+    return fds.revents;
+    }
+int block_poll_fd(int fd, int events) {
+    return poll_fd(fd, events, -1);
+    }
 ssize_t block_read(int fd, void *buffer, size_t length) {
     while (true) {
         int events = block_poll_fd(fd, POLLIN);
